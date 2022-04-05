@@ -213,3 +213,21 @@ extern "C" void destroy_gui(void* window) {
     glfwDestroyWindow((GLFWwindow*)window);
     glfwTerminate();
 }
+
+extern "C" GUI init_gui1() {
+    return init_gui();
+}
+
+extern "C" void ImGui_Checkbox(const char* label, bool* value) {
+    ImGui::Checkbox(label, value);
+}
+
+extern "C" void start_frame1() {
+    start_frame();
+}
+
+extern "C" void end_frame1(GLFWwindow* window, ImVec4 clear_color) {
+    GUI gui;
+    gui.window = window;
+    end_frame(gui, clear_color);
+}
