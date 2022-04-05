@@ -1,4 +1,4 @@
-use std::{ffi::{c_void, self}};
+use std::ffi::c_void;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -14,8 +14,6 @@ pub struct Window1 {
     pub show_another_window: bool,
 }
 
-
-
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ImVec4 {
@@ -26,46 +24,20 @@ pub struct ImVec4 {
 }
 
 extern "C" {
-    pub fn init_gui() -> GUI<'static>;
-    pub fn init_gui1() -> GUI_handle<'static>;
-    fn update_gui(GUI: &GUI, vars: &mut Variables) -> ();
-    fn destroy_gui(window: &c_void) -> ();
+    pub fn init_gui() -> GUI_handle<'static>;
+    pub fn destroy_gui(window: &c_void) -> ();
     pub fn close_window(window: &c_void) -> bool;
     pub fn ImGui_Checkbox(label: *const u8, vale: &bool);
     pub fn ImGui_Text(text: *const u8);
     pub fn ImGui_Button(text: *const u8, value: &bool);
-    pub fn start_frame1();
-    pub fn end_frame1(window: &'static c_void, color: ImVec4);
+    pub fn start_frame();
+    pub fn end_frame(window: &'static c_void, io: &'static c_void, color: ImVec4);
+    pub fn show_demo_window();
 }
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct GUI<'a> {
-    pub window: &'a c_void,
-    pub io: &'a c_void
-}
-
 pub struct GUI_handle<'a> {
     pub window: &'a c_void,
-    pub io: &'a c_void
-}
-
-impl<'a> GUI<'a> {
-    pub fn new() -> GUI<'a> {
-        unsafe {init_gui()}
-    }
-
-    pub fn terminate(&self) -> bool {
-        unsafe {close_window(self.window)}
-    }
-
-    pub fn update(&self, vars: &mut Variables) {
-        unsafe {update_gui(self.clone(), vars)}
-    }
-}
-
-impl<'a> Drop for GUI<'a> {
-    fn drop(&mut self) {
-        unsafe {destroy_gui(self.window)}
-    }
+    pub io: &'a c_void,
 }

@@ -31,6 +31,10 @@ extern "C" struct Variables {
     Window1 window1;
 };
 
+extern "C" void show_demo_window() {
+    ImGui::ShowDemoWindow();
+}
+
 void define_guis(Variables* vars) {       
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (vars->window1.show_demo_window)
@@ -159,7 +163,7 @@ extern "C" bool close_window(GLFWwindow* window) {
     return glfwWindowShouldClose(window);
 }
 
-void start_frame() {
+extern "C" void start_frame() {
     // Poll and handle events (inputs, window resize, etc.)
     // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
     // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
@@ -173,11 +177,11 @@ void start_frame() {
     ImGui::NewFrame();
 }
 
-void end_frame(GUI handle, ImVec4 clear_color) {
+extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImVec4 clear_color) {
         // Rendering
         ImGui::Render();
         int display_w, display_h;
-        glfwGetFramebufferSize(handle.window, &display_w, &display_h);
+        glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -186,36 +190,31 @@ void end_frame(GUI handle, ImVec4 clear_color) {
         // Update and Render additional Platform Windows
         // (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
         //  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
-        if (handle.io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
-        }
             GLFWwindow* backup_current_context = glfwGetCurrentContext();
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
+        }
 
-        glfwSwapBuffers(handle.window);
+        glfwSwapBuffers(window);
 }
 
 extern "C" void update_gui(GUI* handle, Variables* vars) {  
     start_frame();
     define_guis(vars);
-    end_frame(*handle, vars->color);
+    end_frame(handle->window, handle->io, vars->color);
 }
 
 extern "C" void destroy_gui(void* window) {
     // Cleanup
-    std::cout << "edn c++\n";
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
     glfwDestroyWindow((GLFWwindow*)window);
     glfwTerminate();
-}
-
-extern "C" GUI init_gui1() {
-    return init_gui();
 }
 
 extern "C" void ImGui_Checkbox(const char* label, bool* value) {
@@ -228,14 +227,4 @@ extern "C" void ImGui_Text(const char* text) {
 
 extern "C" void ImGui_Button(const char* text, bool* value) {
     *value = ImGui::Button(text);
-}
-
-extern "C" void start_frame1() {
-    start_frame();
-}
-
-extern "C" void end_frame1(GLFWwindow* window, ImVec4 clear_color) {
-    GUI gui;
-    gui.window = window;
-    end_frame(gui, clear_color);
 }
