@@ -4,23 +4,25 @@ use std::ffi::c_void;
 use imgui::*;
 
 pub struct GUI<'a> {
-    pub windows: Vec<&'a Window>,
+    pub windows: Vec<&'a Window<'a>>,
     glfw_window: &'static c_void,
     io: &'static c_void,
     should_close: bool,
 }
 
-pub struct Window {
-    pub items: Vec<Box<dyn ImgGuiGlue>>,
+pub struct Window<'a> {
+    pub items: Vec<&'a dyn ImgGuiGlue>,
+    show: bool,
+    name: String
 }
 
-impl Window {
-    pub fn new() -> Window {
-        Window { items: vec![] }
+impl<'a> Window<'a> {
+    pub fn new(name: String) -> Window<'a> {
+        Window { items: vec![], show: true, name}
     }
 
-    pub fn append<T: ImgGuiGlue + 'static>(&mut self, item: T) {
-        self.items.push(Box::new(item));
+    pub fn append<T: ImgGuiGlue + 'a>(&mut self, item: &'a T)  {
+        self.items.push(item);
     }
 }
 
@@ -105,10 +107,19 @@ impl ImgGuiGlue for Checkbox {
     }
 }
 
-impl ImgGuiGlue for Window {
+impl<'a> ImgGuiGlue for Window<'a> {
     fn render(&self) {
-        for item in &self.items {
-            item.render();
+        if self.show {
+            for item in &self.items {
+                let mut name = self.name.clone();
+                if name.len() == 0 {
+                    name = " ".into();
+                }
+                name.push('\0');
+                unsafe {ImGui_Begin(name.as_ptr(), &self.show)}
+                item.render();
+                unsafe {ImGui_End()}
+            }
         }
     }
 
@@ -184,7 +195,7 @@ impl ImgGuiGlue for Button {
         unsafe {
             ImGui_Button(text.as_ptr(), &self.value);
         }
-        if self.value == true {
+        if self.value {
             let x = self.callback;
             x();
         }
@@ -195,6 +206,32 @@ impl ImgGuiGlue for Button {
     }
 }
 
+pub struct Color {
+    pub col: ImVec4,
+    label: String
+}
+
+impl Color {
+    pub fn new() -> Color {
+        let col = ImVec4{ x: 0.3, y: 0.3, z: 0.3, w: 0.1};
+        Color { col, label: " ".into() }
+    }
+}
+
+impl ImgGuiGlue for Color {
+    fn render(&self) {
+        let mut label = self.label.clone();
+        label.push('\0');
+        unsafe {ImGui_ColorEdit3(label.as_ptr(), &self.col)}
+    }
+
+    fn get_value(&self) -> Option<bool> {
+        None
+    }
+}
+
 pub fn show_demo_window() {
     unsafe{ imgui::show_demo_window()}
 }
+
+

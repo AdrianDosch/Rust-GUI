@@ -228,3 +228,15 @@ extern "C" void ImGui_Text(const char* text) {
 extern "C" void ImGui_Button(const char* text, bool* value) {
     *value = ImGui::Button(text);
 }
+
+extern "C" void ImGui_Begin(const char* name, bool* close) {
+    ImGui::Begin(name, close);
+}
+
+extern "C" void ImGui_End() {
+    ImGui::End();
+}
+
+extern "C" void ImGui_ColorEdit3(const char* name, ImVec4* color) {
+    ImGui::ColorEdit3(name, (float*)color);
+}
