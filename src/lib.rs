@@ -117,11 +117,16 @@ impl ImgGuiGlue for Text {
 pub struct Button {
     pub text: String,
     pub value: bool,
+    callback: fn() -> (),
 }
 
 impl Button {
     pub fn new(text: String) -> Button {
-        Button { text, value: false }
+        Button { text, value: false, callback: ||{}}
+    }
+
+    pub fn set_callback(&mut self, callback: fn() -> ()) {
+        self.callback = callback;
     }
 }
 
@@ -130,6 +135,10 @@ impl ImgGuiGlue for Button {
         let mut text = self.text.clone(); 
         text.push('\0');
         unsafe { ImGui_Button(text.as_ptr(), &self.value);}
+        if self.value == true {
+            let x = self.callback;
+            x();
+        }
     }
 
     fn get_value(&self) -> Option<bool> {
