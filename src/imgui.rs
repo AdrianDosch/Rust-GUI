@@ -31,7 +31,9 @@ extern "C" {
     fn update_gui(GUI: &GUI, vars: &mut Variables) -> ();
     fn destroy_gui(window: &c_void) -> ();
     pub fn close_window(window: &c_void) -> bool;
-    pub fn ImGui_Checkbox(label: *const u8, vale: &mut bool);
+    pub fn ImGui_Checkbox(label: *const u8, vale: &bool);
+    pub fn ImGui_Text(text: *const u8);
+    pub fn ImGui_Button(text: *const u8, value: &bool);
     pub fn start_frame1();
     pub fn end_frame1(window: &'static c_void, color: ImVec4);
 }

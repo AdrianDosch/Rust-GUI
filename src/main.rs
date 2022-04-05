@@ -13,12 +13,16 @@ fn main() {
     //     gui.update(&mut vars)
     // }
 
-    let mut gui = GUI::<Checkbox>::new();
+    let mut gui = GUI::new();
     let mut window = Window::new();
-    window.append(Checkbox::new("test".into()));
-    gui.add_window(window);
+    let check_box = Checkbox::new("test".into());
+    let button = Button::new("click me".into());
+    window.append(check_box);
+    window.append(button);
+    window.append(Text::new("just some text".into()));
+    gui.add_window(&window);
     while !gui.should_close() {
         gui.update();
-        println!("{:?}", gui.windows[0].items[0].get_value());
+        println!("{:?}", window.items[1].get_value());
     }
 }

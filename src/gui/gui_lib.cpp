@@ -188,11 +188,11 @@ void end_frame(GUI handle, ImVec4 clear_color) {
         //  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
         if (handle.io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
+        }
             GLFWwindow* backup_current_context = glfwGetCurrentContext();
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
-        }
 
         glfwSwapBuffers(handle.window);
 }
@@ -220,6 +220,14 @@ extern "C" GUI init_gui1() {
 
 extern "C" void ImGui_Checkbox(const char* label, bool* value) {
     ImGui::Checkbox(label, value);
+}
+
+extern "C" void ImGui_Text(const char* text) {
+    ImGui::Text(text);
+}
+
+extern "C" void ImGui_Button(const char* text, bool* value) {
+    *value = ImGui::Button(text);
 }
 
 extern "C" void start_frame1() {
