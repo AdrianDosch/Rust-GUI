@@ -1,5 +1,4 @@
 use rust_imgui::*;
-mod imgui;
 
 fn hello_world() {
     println!("Hello World");
@@ -12,20 +11,22 @@ fn main() {
     let mut button = Button::new("click me".into());
     button.set_callback(hello_world);
 
-    let color = Color::new();
-    
+    let color = Color::new("background".into());
     let text = Text::new("just some text".into());
 
     let mut window = Window::new("example window".into());
-    window.append(&check_box);
-    window.append(&button);
-    window.append(&text);
-    window.append(&color);
-
+    build_window!(
+        window,
+        &check_box,
+        &button,
+        &text,
+        &color
+    );
+    
     let mut gui = GUI::new();
     gui.add_window(&window);
 
     while !gui.should_close() {
-        gui.update();
+        gui.update(Some(color.col));
     }
 }

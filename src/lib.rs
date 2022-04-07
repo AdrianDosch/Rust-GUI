@@ -1,7 +1,8 @@
-mod imgui;
+// mod rust_imgui;
 use std::ffi::c_void;
 
-use imgui::*;
+use backend::*;
+mod backend;
 
 pub struct GUI<'a> {
     pub windows: Vec<&'a Window<'a>>,
@@ -26,6 +27,23 @@ impl<'a> Window<'a> {
     }
 }
 
+#[macro_export]
+macro_rules! build_window {
+    ($a:expr, $b:expr) => {
+        $a.append($b);
+    };
+
+    ($a:expr, $b:expr, $c:expr) => {
+        $a.append($b);
+        $a.append($c);
+    };
+
+    ($a:expr, $b:expr, $($c:tt)*) => {
+        $a.append($b);
+        build_window!($a,$($c)*)
+    };
+}
+
 impl<'a> GUI<'a> {
     pub fn new() -> GUI<'a> {
         unsafe {
@@ -43,7 +61,7 @@ impl<'a> GUI<'a> {
         self.windows.push(window);
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, color: Option<ImVec4>) {
         unsafe {
             start_frame();
         }
@@ -51,15 +69,20 @@ impl<'a> GUI<'a> {
             self.windows[i].render();
         }
         unsafe {
-            end_frame(
-                self.glfw_window,
-                self.io,
+            let clear_color = if let Some(color) = color {
+                color
+            } else {
                 ImVec4 {
                     x: 0.3,
                     y: 0.3,
                     z: 0.3,
                     w: 1.0,
-                },
+                }
+            };
+            end_frame(
+                self.glfw_window,
+                self.io,
+                clear_color,
             );
         }
     }
@@ -79,13 +102,6 @@ impl<'a> Drop for GUI<'a> {
         unsafe {
             destroy_gui(self.glfw_window);
         }
-    }
-}
-
-pub trait ImgGuiGlue {
-    fn render(&self);
-    fn get_value(&self) -> Option<bool> {
-        None
     }
 }
 
@@ -112,7 +128,7 @@ impl<'a> ImgGuiGlue for Window<'a> {
         if self.show {
             for item in &self.items {
                 let mut name = self.name.clone();
-                if name.len() == 0 {
+                if name.is_empty() {
                     name = " ".into();
                 }
                 name.push('\0');
@@ -212,9 +228,9 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new() -> Color {
-        let col = ImVec4{ x: 0.3, y: 0.3, z: 0.3, w: 0.1};
-        Color { col, label: " ".into() }
+    pub fn new(label: String) -> Color {
+        let col = ImVec4{ x: 0.3, y: 0.3, z: 0.3, w: 1.0};
+        Color { col, label }
     }
 }
 
@@ -231,7 +247,7 @@ impl ImgGuiGlue for Color {
 }
 
 pub fn show_demo_window() {
-    unsafe{ imgui::show_demo_window()}
+    unsafe{ backend::show_demo_window()}
 }
 
 
