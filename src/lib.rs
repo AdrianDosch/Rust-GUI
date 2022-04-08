@@ -1,11 +1,11 @@
 // mod rust_imgui;
-use std::{ffi::c_void, rc::Rc, cell::RefCell};
+use std::{cell::RefCell, ffi::c_void, rc::Rc};
 
 use backend::*;
 mod backend;
 
 pub struct GUI<'a> {
-    pub windows: Vec<&'a Window<'a>>,
+    pub windows: Vec<Rc<RefCell<Window<'a>>>>,
     glfw_window: &'static c_void,
     io: &'static c_void,
     should_close: bool,
@@ -14,20 +14,21 @@ pub struct GUI<'a> {
 pub struct Window<'a> {
     pub items: Vec<&'a dyn ImgGuiGlue>,
     show: bool,
-    name: String,
+    pub name: String,
     pub components: Vec<Rc<RefCell<dyn ImgGuiGlue>>>,
 }
 
 impl<'a> Window<'a> {
-    pub fn new(name: String) -> Window<'a> {
-        Window { items: vec![], show: true, name, components: vec![]}
+    pub fn new(name: String) -> Rc<RefCell<Window<'a>>> {
+        Rc::new(RefCell::new(Window {
+            items: vec![],
+            show: true,
+            name,
+            components: vec![],
+        }))
     }
 
-    pub fn append<T: ImgGuiGlue + 'a>(&mut self, item: &'a T)  {
-        self.items.push(item);
-    }
-
-    pub fn add_component<T: ImgGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
+    pub fn append<T: ImgGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
         self.components.push(comp);
     }
 }
@@ -35,16 +36,16 @@ impl<'a> Window<'a> {
 #[macro_export]
 macro_rules! build_window {
     ($a:expr, $b:expr) => {
-        $a.append($b);
+        $a.borrow_mut().append($b.clone());
     };
 
     ($a:expr, $b:expr, $c:expr) => {
-        $a.append($b);
-        $a.append($c);
+        $a.borrow_mut().append($b.clone());
+        $a.borrow_mut().append($c.clone());
     };
 
     ($a:expr, $b:expr, $($c:tt)*) => {
-        $a.append($b);
+        $a.borrow_mut().append($b.clone());
         build_window!($a,$($c)*)
     };
 }
@@ -62,7 +63,7 @@ impl<'a> GUI<'a> {
         }
     }
 
-    pub fn add_window(&mut self, window: &'a Window<'a>) {
+    pub fn add_window(&mut self, window: Rc<RefCell<Window<'a>>>) {
         self.windows.push(window);
     }
 
@@ -71,7 +72,7 @@ impl<'a> GUI<'a> {
             start_frame();
         }
         for i in 0..self.windows.len() {
-            self.windows[i].render();
+            self.windows[i].borrow().render();
         }
         unsafe {
             let clear_color = if let Some(color) = color {
@@ -84,11 +85,7 @@ impl<'a> GUI<'a> {
                     w: 1.0,
                 }
             };
-            end_frame(
-                self.glfw_window,
-                self.io,
-                clear_color,
-            );
+            end_frame(self.glfw_window, self.io, clear_color);
         }
     }
 
@@ -136,14 +133,14 @@ impl<'a> ImgGuiGlue for Window<'a> {
                 name = " ".into();
             }
             name.push('\0');
-            unsafe {ImGui_Begin(name.as_ptr(), &self.show)}
+            unsafe { ImGui_Begin(name.as_ptr(), &self.show) }
             for item in &self.items {
                 item.render();
             }
             for item in &self.components {
                 item.borrow().render();
             }
-            unsafe {ImGui_End()}
+            unsafe { ImGui_End() }
         }
     }
 
@@ -163,7 +160,7 @@ impl Checkbox {
         Rc::new(RefCell::new(Checkbox {
             label,
             value: false,
-            callback: ||{},
+            callback: || {},
         }))
     }
 
@@ -232,12 +229,17 @@ impl ImgGuiGlue for Button {
 
 pub struct Color {
     pub col: ImVec4,
-    label: String
+    label: String,
 }
 
 impl Color {
     pub fn new(label: String) -> Rc<RefCell<Color>> {
-        let col = ImVec4{ x: 0.3, y: 0.3, z: 0.3, w: 1.0};
+        let col = ImVec4 {
+            x: 0.3,
+            y: 0.3,
+            z: 0.3,
+            w: 1.0,
+        };
         Rc::new(RefCell::new(Color { col, label }))
     }
 }
@@ -246,7 +248,7 @@ impl ImgGuiGlue for Color {
     fn render(&self) {
         let mut label = self.label.clone();
         label.push('\0');
-        unsafe {ImGui_ColorEdit3(label.as_ptr(), &self.col)}
+        unsafe { ImGui_ColorEdit3(label.as_ptr(), &self.col) }
     }
 
     fn get_value(&self) -> Option<bool> {
@@ -255,7 +257,5 @@ impl ImgGuiGlue for Color {
 }
 
 pub fn show_demo_window() {
-    unsafe{ backend::show_demo_window()}
+    unsafe { backend::show_demo_window() }
 }
-
-

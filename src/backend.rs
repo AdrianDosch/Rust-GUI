@@ -18,7 +18,7 @@ extern "C" {
     pub fn start_frame();
     pub fn end_frame(window: &'static c_void, io: &'static c_void, color: ImVec4);
     pub fn show_demo_window();
-    
+
     pub fn ImGui_Checkbox(label: *const u8, value: &bool);
     pub fn ImGui_Text(text: *const u8);
     pub fn ImGui_Button(text: *const u8, value: &bool);
@@ -41,4 +41,3 @@ pub trait ImgGuiGlue {
         None
     }
 }
-
