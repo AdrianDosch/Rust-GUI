@@ -1,5 +1,5 @@
 // mod rust_imgui;
-use std::ffi::c_void;
+use std::{ffi::c_void, rc::Rc, cell::RefCell};
 
 use backend::*;
 mod backend;
@@ -14,16 +14,21 @@ pub struct GUI<'a> {
 pub struct Window<'a> {
     pub items: Vec<&'a dyn ImgGuiGlue>,
     show: bool,
-    name: String
+    name: String,
+    pub components: Vec<Rc<RefCell<dyn ImgGuiGlue>>>,
 }
 
 impl<'a> Window<'a> {
     pub fn new(name: String) -> Window<'a> {
-        Window { items: vec![], show: true, name}
+        Window { items: vec![], show: true, name, components: vec![]}
     }
 
     pub fn append<T: ImgGuiGlue + 'a>(&mut self, item: &'a T)  {
         self.items.push(item);
+    }
+
+    pub fn add_component<T: ImgGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
+        self.components.push(comp);
     }
 }
 
@@ -57,7 +62,7 @@ impl<'a> GUI<'a> {
         }
     }
 
-    pub fn add_window(&mut self, window: &'a Window) {
+    pub fn add_window(&mut self, window: &'a Window<'a>) {
         self.windows.push(window);
     }
 
@@ -126,16 +131,19 @@ impl ImgGuiGlue for Checkbox {
 impl<'a> ImgGuiGlue for Window<'a> {
     fn render(&self) {
         if self.show {
-            for item in &self.items {
-                let mut name = self.name.clone();
-                if name.is_empty() {
-                    name = " ".into();
-                }
-                name.push('\0');
-                unsafe {ImGui_Begin(name.as_ptr(), &self.show)}
-                item.render();
-                unsafe {ImGui_End()}
+            let mut name = self.name.clone();
+            if name.is_empty() {
+                name = " ".into();
             }
+            name.push('\0');
+            unsafe {ImGui_Begin(name.as_ptr(), &self.show)}
+            for item in &self.items {
+                item.render();
+            }
+            for item in &self.components {
+                item.borrow().render();
+            }
+            unsafe {ImGui_End()}
         }
     }
 
@@ -145,18 +153,18 @@ impl<'a> ImgGuiGlue for Window<'a> {
 }
 
 pub struct Checkbox {
-    label: String,
-    value: bool,
-    callback: fn() -> (),
+    pub label: String,
+    pub value: bool,
+    pub callback: fn() -> (),
 }
 
 impl Checkbox {
-    pub fn new(label: String) -> Checkbox {
-        Checkbox {
+    pub fn new(label: String) -> Rc<RefCell<Checkbox>> {
+        Rc::new(RefCell::new(Checkbox {
             label,
             value: false,
             callback: ||{},
-        }
+        }))
     }
 
     pub fn set_callback(&mut self, callback: fn() -> ()) {
@@ -169,8 +177,8 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn new(text: String) -> Text {
-        Text { text }
+    pub fn new(text: String) -> Rc<RefCell<Text>> {
+        Rc::new(RefCell::new(Text { text }))
     }
 }
 
@@ -191,12 +199,12 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(text: String) -> Button {
-        Button {
+    pub fn new(text: String) -> Rc<RefCell<Button>> {
+        Rc::new(RefCell::new(Button {
             text,
             value: false,
             callback: || {},
-        }
+        }))
     }
 
     pub fn set_callback(&mut self, callback: fn() -> ()) {
@@ -228,9 +236,9 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new(label: String) -> Color {
+    pub fn new(label: String) -> Rc<RefCell<Color>> {
         let col = ImVec4{ x: 0.3, y: 0.3, z: 0.3, w: 1.0};
-        Color { col, label }
+        Rc::new(RefCell::new(Color { col, label }))
     }
 }
 
