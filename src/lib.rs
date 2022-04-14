@@ -50,6 +50,17 @@ macro_rules! build_window {
     };
 }
 
+#[macro_export]
+//macro from webplatform
+macro_rules! enclose {
+    ( ($( $x:ident ),*) $y:expr ) => {
+        {
+            $(let $x = $x.clone();)*
+            $y
+        }
+    };
+}
+
 impl<'a> GUI<'a> {
     pub fn new() -> GUI<'a> {
         unsafe {
@@ -192,7 +203,7 @@ impl ImgGuiGlue for Text {
 pub struct Button {
     pub text: String,
     pub value: bool,
-    callback: fn() -> (),
+    callback: Box<dyn Fn()>,
 }
 
 impl Button {
@@ -200,12 +211,12 @@ impl Button {
         Rc::new(RefCell::new(Button {
             text,
             value: false,
-            callback: || {},
+            callback: Box::new(||{}),
         }))
     }
 
-    pub fn set_callback(&mut self, callback: fn() -> ()) {
-        self.callback = callback;
+    pub fn set_callback(&mut self, callback: impl Fn() + 'static) {
+        self.callback = Box::new(callback);
     }
 }
 
@@ -217,8 +228,7 @@ impl ImgGuiGlue for Button {
             ImGui_Button(text.as_ptr(), &self.value);
         }
         if self.value {
-            let x = self.callback;
-            x();
+            (self.callback)()
         }
     }
 
