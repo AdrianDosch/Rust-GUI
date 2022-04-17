@@ -43,6 +43,15 @@ version = "0.1.0"
 dependencies = [
  "cc",
  "derivative",
+ "rust_imgui_macros",
+]
+
+[[package]]
+name = "rust_imgui_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -4,6 +4,8 @@ use std::{cell::RefCell, ffi::c_void, rc::Rc};
 use backend::*;
 mod backend;
 
+use rust_imgui_macros::Callback;
+
 pub struct GUI<'a> {
     pub windows: Vec<Rc<RefCell<Window<'a>>>>,
     glfw_window: &'static c_void,
@@ -126,13 +128,8 @@ impl ImgGuiGlue for Checkbox {
             ImGui_Checkbox(label.as_ptr(), &self.value);
         }
         if self.value {
-            let x = self.callback;
-            x();
+            self.call_callback();
         }
-    }
-
-    fn get_value(&self) -> Option<bool> {
-        Some(self.value)
     }
 }
 
@@ -154,16 +151,13 @@ impl<'a> ImgGuiGlue for Window<'a> {
             unsafe { ImGui_End() }
         }
     }
-
-    fn get_value(&self) -> Option<bool> {
-        None
-    }
 }
 
+#[derive(Callback)]
 pub struct Checkbox {
     pub label: String,
     pub value: bool,
-    pub callback: fn() -> (),
+    pub callback: Box<dyn Fn()>,
 }
 
 impl Checkbox {
@@ -171,12 +165,8 @@ impl Checkbox {
         Rc::new(RefCell::new(Checkbox {
             label,
             value: false,
-            callback: || {},
+            callback: Box::new(|| {}),
         }))
-    }
-
-    pub fn set_callback(&mut self, callback: fn() -> ()) {
-        self.callback = callback;
     }
 }
 
@@ -200,6 +190,7 @@ impl ImgGuiGlue for Text {
     }
 }
 
+#[derive(Callback)]
 pub struct Button {
     pub text: String,
     pub value: bool,
@@ -214,10 +205,6 @@ impl Button {
             callback: Box::new(||{}),
         }))
     }
-
-    pub fn set_callback(&mut self, callback: impl Fn() + 'static) {
-        self.callback = Box::new(callback);
-    }
 }
 
 impl ImgGuiGlue for Button {
@@ -228,12 +215,8 @@ impl ImgGuiGlue for Button {
             ImGui_Button(text.as_ptr(), &self.value);
         }
         if self.value {
-            (self.callback)()
+            self.call_callback();
         }
-    }
-
-    fn get_value(&self) -> Option<bool> {
-        Some(self.value)
     }
 }
 
@@ -260,12 +243,13 @@ impl ImgGuiGlue for Color {
         label.push('\0');
         unsafe { ImGui_ColorEdit3(label.as_ptr(), &self.col) }
     }
-
-    fn get_value(&self) -> Option<bool> {
-        None
-    }
 }
 
 pub fn show_demo_window() {
     unsafe { backend::show_demo_window() }
+}
+
+pub trait Callback {
+    fn set_callback(&mut self, callback: impl Fn() + 'static);
+    fn call_callback(&self);
 }

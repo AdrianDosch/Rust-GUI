@@ -1,13 +1,13 @@
 [package]
-name = "rust_imgui"
+name = "rust_imgui_macros"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-derivative = "*"
-rust_imgui_macros = {path = "./rust_imgui_macros"}
+[lib]
+proc-macro = true
 
-[build-dependencies]
-cc = "*"
+[dependencies]
+syn = "*"
+quote = "*"

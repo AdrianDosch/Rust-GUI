@@ -37,7 +37,4 @@ pub struct GUI_handle<'a> {
 
 pub trait ImgGuiGlue {
     fn render(&self);
-    fn get_value(&self) -> Option<bool> {
-        None
-    }
 }
