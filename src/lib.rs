@@ -4,7 +4,7 @@ use std::{cell::RefCell, ffi::c_void, rc::Rc};
 use backend::*;
 mod backend;
 
-use rust_imgui_macros::Callback;
+use rust_imgui_macros::{Callback, ImgGuiGlue};
 
 pub struct GUI<'a> {
     pub windows: Vec<Rc<RefCell<Window<'a>>>>,
@@ -120,18 +120,6 @@ impl<'a> Drop for GUI<'a> {
     }
 }
 
-impl ImgGuiGlue for Checkbox {
-    fn render(&self) {
-        let mut label = self.label.clone();
-        label.push('\0');
-        unsafe {
-            ImGui_Checkbox(label.as_ptr(), &self.value);
-        }
-        if self.value {
-            self.call_callback();
-        }
-    }
-}
 
 impl<'a> ImgGuiGlue for Window<'a> {
     fn render(&self) {
@@ -153,7 +141,7 @@ impl<'a> ImgGuiGlue for Window<'a> {
     }
 }
 
-#[derive(Callback)]
+#[derive(Callback, ImgGuiGlue)]
 pub struct Checkbox {
     pub label: String,
     pub value: bool,
@@ -170,78 +158,49 @@ impl Checkbox {
     }
 }
 
+#[derive(ImgGuiGlue)]
 pub struct Text {
-    pub text: String,
+    pub label: String,
 }
 
 impl Text {
-    pub fn new(text: String) -> Rc<RefCell<Text>> {
-        Rc::new(RefCell::new(Text { text }))
+    pub fn new(label: String) -> Rc<RefCell<Text>> {
+        Rc::new(RefCell::new(Text { label }))
     }
 }
 
-impl ImgGuiGlue for Text {
-    fn render(&self) {
-        let mut text = self.text.clone();
-        text.push('\0');
-        unsafe {
-            ImGui_Text(text.as_ptr());
-        }
-    }
-}
-
-#[derive(Callback)]
+#[derive(Callback, ImgGuiGlue)]
 pub struct Button {
-    pub text: String,
+    pub label: String,
     pub value: bool,
     callback: Box<dyn Fn()>,
 }
 
 impl Button {
-    pub fn new(text: String) -> Rc<RefCell<Button>> {
+    pub fn new(label: String) -> Rc<RefCell<Button>> {
         Rc::new(RefCell::new(Button {
-            text,
+            label,
             value: false,
             callback: Box::new(||{}),
         }))
     }
 }
 
-impl ImgGuiGlue for Button {
-    fn render(&self) {
-        let mut text = self.text.clone();
-        text.push('\0');
-        unsafe {
-            ImGui_Button(text.as_ptr(), &self.value);
-        }
-        if self.value {
-            self.call_callback();
-        }
-    }
-}
-
+#[derive(ImgGuiGlue)]
 pub struct Color {
-    pub col: ImVec4,
+    pub value: ImVec4,
     label: String,
 }
 
 impl Color {
     pub fn new(label: String) -> Rc<RefCell<Color>> {
-        let col = ImVec4 {
+        let value = ImVec4 {
             x: 0.3,
             y: 0.3,
             z: 0.3,
             w: 1.0,
         };
-        Rc::new(RefCell::new(Color { col, label }))
-    }
-}
-
-impl ImgGuiGlue for Color {
-    fn render(&self) {
-        let mut label = self.label.clone();
-        label.push('\0');
-        unsafe { ImGui_ColorEdit3(label.as_ptr(), &self.col) }
+        Rc::new(RefCell::new(Color { value, label }))
     }
 }
 

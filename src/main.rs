@@ -16,7 +16,7 @@ fn main() {
     
     let callback = enclose! { (text, counter) move || {
         *counter.borrow_mut() += 1;
-        text.borrow_mut().text = format!("{}", counter.borrow_mut()).into();
+        text.borrow_mut().label = format!("{}", counter.borrow_mut()).into();
     }};
 
     button.borrow_mut().set_callback(callback);
@@ -29,10 +29,10 @@ fn main() {
     gui.add_window(window.clone());
 
     while !gui.should_close() {
-        gui.update(Some(color.borrow().col));
+        gui.update(Some(color.borrow().value));
         if button.borrow().value {
             println!("{:?}", counter.borrow());
-            button.borrow_mut().text = "you clicked me!".into();
+            button.borrow_mut().label = "you clicked me!".into();
         }
     }
 }

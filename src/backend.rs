@@ -19,14 +19,19 @@ extern "C" {
     pub fn end_frame(window: &'static c_void, io: &'static c_void, color: ImVec4);
     pub fn show_demo_window();
 
+    //to be able to use the derive macro ImGuiGlue the functions have to have the name ImGui_<struct name>.
     pub fn ImGui_Checkbox(label: *const u8, value: &bool);
     pub fn ImGui_Text(text: *const u8);
     pub fn ImGui_Button(text: *const u8, value: &bool);
     pub fn ImGui_Begin(name: *const u8, close: &bool);
     pub fn ImGui_End();
-    pub fn ImGui_ColorEdit3(label: *const u8, value: &ImVec4);
 
+    pub fn ImGui_ColorEdit3(label: *const u8, value: &ImVec4); //alias ImGui_Color
 }
+
+#[allow(non_snake_case)]
+pub unsafe fn ImGui_Color(label: *const u8, value: &ImVec4) { ImGui_ColorEdit3(label, value); }
+
 
 #[repr(C)]
 #[derive(Debug)]
