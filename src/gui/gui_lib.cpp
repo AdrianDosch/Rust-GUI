@@ -240,3 +240,15 @@ extern "C" void ImGui_End() {
 extern "C" void ImGui_ColorEdit3(const char* name, ImVec4* color) {
     ImGui::ColorEdit3(name, (float*)color);
 }
+
+extern "C" void ImGui_SameLine(float offset_from_start_x, float spacing) {
+    ImGui::SameLine(offset_from_start_x, spacing);
+}
+
+extern "C" void ImGui_SliderInt(const char* label, int* value, int min_val, int max_val) {
+    ImGui::SliderInt(label, value, min_val, max_val);
+}
+
+extern "C" void ImGui_SliderFloat(const char* label, float* value, float v_min, float v_max) {
+    ImGui::SliderFloat(label, value, v_min, v_max, "%.3f");
+}

@@ -120,7 +120,6 @@ impl<'a> Drop for GUI<'a> {
     }
 }
 
-
 impl<'a> ImgGuiGlue for Window<'a> {
     fn render(&self) {
         if self.show {
@@ -176,6 +175,7 @@ pub struct Button {
     callback: Box<dyn Fn()>,
 }
 
+
 impl Button {
     pub fn new(label: String) -> Rc<RefCell<Button>> {
         Rc::new(RefCell::new(Button {
@@ -188,8 +188,8 @@ impl Button {
 
 #[derive(ImgGuiGlue)]
 pub struct Color {
-    pub value: ImVec4,
     label: String,
+    pub value: ImVec4,
 }
 
 impl Color {
@@ -204,10 +204,54 @@ impl Color {
     }
 }
 
+#[derive(ImgGuiGlue)]
+pub struct SameLine {
+    offset_from_start_x: f32,
+    spaceing: f32
+}
+
+impl SameLine {
+    pub fn new(offset_from_start_x: Option<f32>, spaceing: Option<f32>) ->  Rc<RefCell<Self>> {
+        let offset_from_start_x = if let Some(x) = offset_from_start_x {x} else {0.0};
+        let spaceing = if let Some(x) = spaceing {x} else {-1.0};
+        
+        Rc::new(RefCell::new(SameLine { offset_from_start_x, spaceing }))
+    }
+}
+
 pub fn show_demo_window() {
     unsafe { backend::show_demo_window() }
 }
 
+#[derive(Callback, ImgGuiGlue)]
+pub struct SliderInt {
+    pub label: String,
+    pub value: i32,
+    callback: Box<dyn Fn()>,
+    pub min: i32,
+    pub max: i32
+}
+
+impl SliderInt {
+    pub fn new(label: String) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(SliderInt { label, value: 0, min: 0, max: 100, callback: Box::new(||{}) }))
+    }
+}
+
+#[derive(Callback, ImgGuiGlue)]
+pub struct SliderFloat {
+    pub label: String,
+    pub value: f32,
+    callback: Box<dyn Fn()>,
+    pub min: f32,
+    pub max: f32
+}
+
+impl SliderFloat {
+    pub fn new(label: String) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(SliderFloat { label, value: 0.0, min: 0.0, max: 1.0, callback: Box::new(||{}) }))
+    }
+}
 pub trait Callback {
     fn set_callback(&mut self, callback: impl Fn() + 'static);
     fn call_callback(&self);

@@ -25,8 +25,10 @@ extern "C" {
     pub fn ImGui_Button(text: *const u8, value: &bool);
     pub fn ImGui_Begin(name: *const u8, close: &bool);
     pub fn ImGui_End();
-
     pub fn ImGui_ColorEdit3(label: *const u8, value: &ImVec4); //alias ImGui_Color
+    pub fn ImGui_SameLine(offset_from_start_x: f32, spaceing: f32);
+    pub fn ImGui_SliderInt(label: *const u8, value: &i32, min_val: i32, max_val: i32);
+    pub fn ImGui_SliderFloat(label: *const u8, value: &f32, min_val: f32, max_val: f32);
 }
 
 #[allow(non_snake_case)]
