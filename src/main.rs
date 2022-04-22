@@ -10,6 +10,10 @@ fn main() {
     
     let slider_int = SliderInt::new("##1".into());
     let slider_float = SliderFloat::new("##2".into());
+    // let slider_callback = enclose! { (slider_float) move || {
+    //     println!("test");
+    // } };
+    // slider_float.borrow_mut().set_callback(slider_callback);
 
     let color = Color::new("background".into());
     

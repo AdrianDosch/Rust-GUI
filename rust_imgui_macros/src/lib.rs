@@ -54,13 +54,16 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     let mut contains_label = false;
 
     let mut fun_param = vec![];
+    let mut ty = None;
 
     for member in members {
+        
         match member.ident {
             Some(i) => {
                 
                 if i == Ident::new("value", syn::__private::Span::call_site()) {
                     contains_value = true;
+                    ty = Some(member.ty);
                     continue;
                 } else if i == Ident::new("callback", syn::__private::Span::call_site()) {
                     contains_callback = true;
@@ -77,6 +80,23 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     }
 
     let imgui_fn = format_ident!("ImGui_{}", name);    
+
+    let label_manipulation = quote! {
+        let mut label = self.label.clone();
+        label.push('\0');
+    };
+
+    let check_callback = quote! {
+        if stringify!(#ty) == stringify!(bool) {
+            if self.value as i32 == 1 {  
+                self.call_callback();
+            }
+        } else {
+            if prev != self.value {
+                self.call_callback();
+            }
+        }
+    };
     
     let gen;
     if contains_callback && contains_value && contains_label {
@@ -84,14 +104,13 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             gen = quote! {
                 impl ImgGuiGlue for #name {
                     fn render(&self) {
-                        let mut label = self.label.clone();
-                        label.push('\0');
+                        let prev = self.value.clone();
+                        #label_manipulation
                         unsafe {
                             #imgui_fn (label.as_ptr(), &self.value);
                         }
-                        if self.value as i32 > 0{ //TODO: if value is non bool the callback is called always and in case value = 0 never... 
-                            self.call_callback();
-                        }
+
+                        #check_callback
                     }
                 }
             };
@@ -99,14 +118,13 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             gen = quote! {
                 impl ImgGuiGlue for #name {
                     fn render(&self) {
-                        let mut label = self.label.clone();
-                        label.push('\0');
+                        let prev = self.value.clone();
+                        #label_manipulation
                         unsafe {
                             #imgui_fn (label.as_ptr(), &self.value, #(self.#fun_param),*);
                         }
-                        if self.value as i32 > 0 {
-                            self.call_callback();
-                        }
+
+                        #check_callback
                     }
                 }
             };
@@ -116,8 +134,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             gen = quote! {
                 impl ImgGuiGlue for #name {
                     fn render(&self) {
-                        let mut label = self.label.clone();
-                        label.push('\0');
+                        #label_manipulation
                         unsafe { #imgui_fn (label.as_ptr(), &self.value) }
                     }
                 }
@@ -126,8 +143,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             gen = quote! {
                 impl ImgGuiGlue for #name {
                     fn render(&self) {
-                        let mut label = self.label.clone();
-                        label.push('\0');
+                        #label_manipulation
                         unsafe { #imgui_fn (label.as_ptr(), &self.value, #(self.#fun_param),*) }
                     }
                 }
@@ -137,8 +153,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
         gen = quote! {
             impl ImgGuiGlue for #name {
                 fn render(&self) {
-                    let mut label = self.label.clone();
-                    label.push('\0');
+                    #label_manipulation
                     unsafe {
                         #imgui_fn (label.as_ptr());
                     }
