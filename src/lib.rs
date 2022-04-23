@@ -4,7 +4,7 @@ use std::{cell::RefCell, ffi::c_void, rc::Rc};
 use backend::*;
 mod backend;
 
-use rust_imgui_macros::{Callback, ImgGuiGlue};
+use rust_imgui_macros::{Callback, ImGuiGlue};
 
 pub struct GUI<'a> {
     pub windows: Vec<Rc<RefCell<Window<'a>>>>,
@@ -14,10 +14,10 @@ pub struct GUI<'a> {
 }
 
 pub struct Window<'a> {
-    pub items: Vec<&'a dyn ImgGuiGlue>,
+    pub items: Vec<&'a dyn ImGuiGlue>,
     show: bool,
     pub name: String,
-    pub components: Vec<Rc<RefCell<dyn ImgGuiGlue>>>,
+    pub components: Vec<Rc<RefCell<dyn ImGuiGlue>>>,
 }
 
 impl<'a> Window<'a> {
@@ -30,7 +30,7 @@ impl<'a> Window<'a> {
         }))
     }
 
-    pub fn append<T: ImgGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
+    pub fn append<T: ImGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
         self.components.push(comp);
     }
 }
@@ -120,7 +120,7 @@ impl<'a> Drop for GUI<'a> {
     }
 }
 
-impl<'a> ImgGuiGlue for Window<'a> {
+impl<'a> ImGuiGlue for Window<'a> {
     fn render(&self) {
         if self.show {
             let mut name = self.name.clone();
@@ -140,7 +140,7 @@ impl<'a> ImgGuiGlue for Window<'a> {
     }
 }
 
-#[derive(Callback, ImgGuiGlue)]
+#[derive(Callback, ImGuiGlue)]
 pub struct Checkbox {
     pub label: String,
     pub value: bool,
@@ -157,7 +157,7 @@ impl Checkbox {
     }
 }
 
-#[derive(ImgGuiGlue)]
+#[derive(ImGuiGlue)]
 pub struct Text {
     pub label: String,
 }
@@ -168,7 +168,7 @@ impl Text {
     }
 }
 
-#[derive(Callback, ImgGuiGlue)]
+#[derive(Callback, ImGuiGlue)]
 pub struct Button {
     pub label: String,
     pub value: bool,
@@ -186,7 +186,7 @@ impl Button {
     }
 }
 
-#[derive(ImgGuiGlue)]
+#[derive(ImGuiGlue)]
 pub struct Color {
     label: String,
     pub value: ImVec4,
@@ -204,7 +204,7 @@ impl Color {
     }
 }
 
-#[derive(ImgGuiGlue)]
+#[derive(ImGuiGlue)]
 pub struct SameLine {
     offset_from_start_x: f32,
     spaceing: f32
@@ -223,7 +223,7 @@ pub fn show_demo_window() {
     unsafe { backend::show_demo_window() }
 }
 
-#[derive(Callback, ImgGuiGlue)]
+#[derive(Callback, ImGuiGlue)]
 pub struct SliderInt {
     pub label: String,
     pub value: i32,
@@ -238,7 +238,7 @@ impl SliderInt {
     }
 }
 
-#[derive(Callback, ImgGuiGlue)]
+#[derive(Callback, ImGuiGlue)]
 pub struct SliderFloat {
     pub label: String,
     pub value: f32,

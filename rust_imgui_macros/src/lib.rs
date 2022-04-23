@@ -28,13 +28,13 @@ fn impl_callback(ast: &syn::DeriveInput) -> TokenStream {
     gen.into()
 }
 
-#[proc_macro_derive(ImgGuiGlue)]
-pub fn imgGuiGlue_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ImGuiGlue)]
+pub fn ImGuiGlue_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
-    impl_imgGuiGlue(&ast)
+    impl_ImGuiGlue(&ast)
 }
 
-fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
+fn impl_ImGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let fields = &ast.data;
 
@@ -83,6 +83,9 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
 
     let label_manipulation = quote! {
         let mut label = self.label.clone();
+        if label.len() == 0 {
+            label.push(' ');
+        }
         label.push('\0');
     };
 
@@ -102,7 +105,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     if contains_callback && contains_value && contains_label {
         if fun_param.len() == 0 {
             gen = quote! {
-                impl ImgGuiGlue for #name {
+                impl ImGuiGlue for #name {
                     fn render(&self) {
                         let prev = self.value.clone();
                         #label_manipulation
@@ -116,7 +119,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             };
         } else {
             gen = quote! {
-                impl ImgGuiGlue for #name {
+                impl ImGuiGlue for #name {
                     fn render(&self) {
                         let prev = self.value.clone();
                         #label_manipulation
@@ -132,7 +135,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     } else if contains_value && contains_label {
         if fun_param.len() == 0 {
             gen = quote! {
-                impl ImgGuiGlue for #name {
+                impl ImGuiGlue for #name {
                     fn render(&self) {
                         #label_manipulation
                         unsafe { #imgui_fn (label.as_ptr(), &self.value) }
@@ -141,7 +144,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
             };
         } else {
             gen = quote! {
-                impl ImgGuiGlue for #name {
+                impl ImGuiGlue for #name {
                     fn render(&self) {
                         #label_manipulation
                         unsafe { #imgui_fn (label.as_ptr(), &self.value, #(self.#fun_param),*) }
@@ -151,7 +154,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
         }
     } else if contains_label{
         gen = quote! {
-            impl ImgGuiGlue for #name {
+            impl ImGuiGlue for #name {
                 fn render(&self) {
                     #label_manipulation
                     unsafe {
@@ -163,7 +166,7 @@ fn impl_imgGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
     } else {
         //all struct members will be used as ImGui_xx() function Parameters
         gen = quote! {
-            impl ImgGuiGlue for #name {
+            impl ImGuiGlue for #name {
                 fn render(&self) {
                     unsafe {
                         #imgui_fn (#(self.#fun_param),*);

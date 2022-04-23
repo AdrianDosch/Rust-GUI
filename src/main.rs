@@ -2,14 +2,22 @@ use std::{rc::Rc, cell::RefCell};
 
 use rust_imgui::*;
 
+// extern "C" {pub fn ImGui_Test(label: *const u8);}
+
+// fn test() {
+//     unsafe {
+//         ImGui_Test();
+//     }
+// }
+
 fn main() {
     let check_box = Checkbox::new("show demo window".into());
     check_box.borrow_mut().set_callback(show_demo_window);
 
     let button = Button::new("click me".into());
     
-    let slider_int = SliderInt::new("##1".into());
-    let slider_float = SliderFloat::new("##2".into());
+    let slider_int = SliderInt::new("".into());
+    let slider_float = SliderFloat::new("##1".into());
     // let slider_callback = enclose! { (slider_float) move || {
     //     println!("test");
     // } };
@@ -25,7 +33,6 @@ fn main() {
         text.borrow_mut().label = format!("{}", counter.borrow_mut());
     }};
     button.borrow_mut().set_callback(callback);
-    
 
     let window = Window::new("example window".into());
     build_window!(window, check_box, button, SameLine::new(None, None), text, color, slider_int, slider_float);

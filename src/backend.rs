@@ -42,6 +42,6 @@ pub struct GUI_handle<'a> {
     pub io: &'a c_void,
 }
 
-pub trait ImgGuiGlue {
+pub trait ImGuiGlue {
     fn render(&self);
 }
