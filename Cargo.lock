@@ -3,24 +3,6 @@
 version = 3
 
 [[package]]
-name = "Rust-GUI"
-version = "0.1.0"
-dependencies = [
- "Rust_GUI_macros",
- "cc",
- "derivative",
- "lazy_static",
-]
-
-[[package]]
-name = "Rust_GUI_macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -59,6 +41,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1feb54ed693b93a84e14094943b84b7c4eae204c512b7ccb95ab0c66d278ad1"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rust-gui"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "derivative",
+ "lazy_static",
+ "rust_gui_macros",
+]
+
+[[package]]
+name = "rust_gui_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

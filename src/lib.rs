@@ -4,7 +4,7 @@ use std::{cell::RefCell, ffi::c_void, rc::Rc, sync::Mutex};
 use backend::*;
 mod backend;
 
-use Rust_GUI_macros::{Callback, ImGuiGlue};
+use rust_gui_macros::{Callback, ImGuiGlue};
 
 pub struct GUI<'a> {
     pub windows: Vec<Rc<RefCell<Window<'a>>>>,

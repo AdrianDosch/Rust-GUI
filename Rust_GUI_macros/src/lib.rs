@@ -1,9 +1,9 @@
 extern crate proc_macro;
 extern crate syn;
 
-use proc_macro::{TokenStream};
-use quote::{quote, format_ident, ToTokens};
-use syn::{Fields, Data, Ident};
+use proc_macro::TokenStream;
+use quote::{format_ident, quote, ToTokens};
+use syn::{Data, Fields, Ident};
 
 #[proc_macro_derive(Callback)]
 pub fn callback_derive(input: TokenStream) -> TokenStream {
@@ -57,10 +57,8 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
     let mut ty = None;
 
     for member in members {
-        
         match member.ident {
             Some(i) => {
-                
                 if i == Ident::new("value", syn::__private::Span::call_site()) {
                     contains_value = true;
                     ty = Some(member.ty);
@@ -73,13 +71,12 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
                     continue;
                 }
                 fun_param.push(i.clone().into_token_stream());
-            },
-            None => unimplemented!()
+            }
+            None => unimplemented!(),
         }
-        
     }
 
-    let imgui_fn = format_ident!("ImGui_{}", name);    
+    let imgui_fn = format_ident!("ImGui_{}", name);
 
     let label_manipulation = quote! {
         let mut label = self.label.clone();
@@ -91,7 +88,7 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
 
     let check_callback = quote! {
         if stringify!(#ty) == stringify!(bool) {
-            if self.value as i32 == 1 {  
+            if self.value as i32 == 1 {
                 self.call_callback();
             }
         } else {
@@ -100,10 +97,10 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
             }
         }
     };
-    
+
     let gen;
     if contains_callback && contains_value && contains_label {
-        if fun_param.len() == 0 {
+        if fun_param.is_empty() {
             gen = quote! {
                 impl ImGuiGlue for #name {
                     fn render(&self) {
@@ -133,7 +130,7 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
             };
         }
     } else if contains_value && contains_label {
-        if fun_param.len() == 0 {
+        if fun_param.is_empty() {
             gen = quote! {
                 impl ImGuiGlue for #name {
                     fn render(&self) {
@@ -152,7 +149,7 @@ fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
                 }
             };
         }
-    } else if contains_label{
+    } else if contains_label {
         gen = quote! {
             impl ImGuiGlue for #name {
                 fn render(&self) {
