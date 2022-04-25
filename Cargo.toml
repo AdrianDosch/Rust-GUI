@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 derivative = "*"
+lazy_static = "*"
 rust_imgui_macros = {path = "./rust_imgui_macros"}
 
 [build-dependencies]

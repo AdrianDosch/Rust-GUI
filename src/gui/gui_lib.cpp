@@ -26,8 +26,15 @@ extern "C" struct Window1
     bool show_another_window;
 };
 
+extern "C" struct ImGui_Vec4 {
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
 extern "C" struct Variables {
-    ImVec4 color;
+    ImGui_Vec4 color;
     Window1 window1;
 };
 
@@ -74,7 +81,7 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-extern "C" GUI init_gui()
+extern "C" GUI init_gui(const char* window_label)
 {
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -106,7 +113,7 @@ extern "C" GUI init_gui()
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, window_label, NULL, NULL);
     if (window == NULL)
         std::cout << "window eror!!!\n";
         //return 1;
@@ -178,16 +185,19 @@ extern "C" void start_frame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+    ImGui::DockSpaceOverViewport();
 }
 
-extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImVec4 clear_color) {
+#include <iostream>
+
+extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImGui_Vec4 clear_color) {
         // Rendering
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(0,0,0,0);
+        // std::cout << "cc_X " << clear_color.x << "\n";
+        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w); //somehow gets ignored because of DockSpaceOverViewport()
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
