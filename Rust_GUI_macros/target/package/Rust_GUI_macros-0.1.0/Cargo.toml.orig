@@ -2,6 +2,8 @@
 name = "rust_gui_macros"
 version = "0.1.0"
 edition = "2021"
+description = "This project is a part of the library rust-gui."
+repository = "https://github.com/AdrianDosch/Rust-GUI"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
