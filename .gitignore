@@ -2,4 +2,5 @@
 .vscode/
 rust_gui_macros/Cargo.lock
 rust_gui_macros/target/*
+rust_gui_macros/target
 Cargo.lock
