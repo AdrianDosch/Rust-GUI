@@ -11,7 +11,7 @@
 
 [package]
 edition = "2021"
-name = "Rust_GUI_macros"
+name = "rust_gui_macros"
 version = "0.1.0"
 resolver = "2"
 
