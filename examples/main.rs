@@ -1,7 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
 use rust_gui::*;
-// use rust_gui::*;
 
 fn def_win1<'a>() -> (
     Rc<RefCell<rust_gui::Window<'a>>>,

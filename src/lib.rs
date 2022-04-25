@@ -1,4 +1,20 @@
-// mod rust_imgui;
+//! Example usage:
+//!
+//! ```
+//! use rust_gui::*;
+//! 
+//! let button = Button::new();
+//! let window = Window::new("example window".into());
+//! build_window!(window, button);
+//! let mut gui = GUI::new("example application".into());
+//! gui.add_window(window.clone());
+//! 
+//! while !gui.should_close() {
+//!     gui.update(None);
+//! }
+//! 
+//! ```
+
 use std::{cell::RefCell, ffi::c_void, rc::Rc, sync::Mutex};
 
 use backend::*;
@@ -6,6 +22,10 @@ mod backend;
 
 use rust_gui_macros::{Callback, ImGuiGlue};
 
+
+/// This struct represents the handle to the Dear ImGui library. 
+/// Use the Gui::new() function to create a context. You can add Windows to the gui by using the function gui.add_window().
+/// After adding all windows, use the gui.update() function to render the gui.
 pub struct GUI<'a> {
     pub windows: Vec<Rc<RefCell<Window<'a>>>>,
     glfw_window: &'static c_void,
