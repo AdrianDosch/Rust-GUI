@@ -23,7 +23,7 @@ fn main() {
         .status()
         .expect("pulling Dear ImGui failed");
 
-    //compile Dear ImGui
+    //compile Dear ImGui + gui_lib.cpp
     cc::Build::new()
         .cpp(true)
         .include(format!("{}{}", imgui_path, ""))

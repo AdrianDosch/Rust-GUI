@@ -1,11 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
 
-use rust_imgui::*;
+use Rust_GUI::*;
+// use Rust_GUI::*;
 
 fn def_win1<'a>() -> (
-    Rc<RefCell<rust_imgui::Window<'a>>>,
+    Rc<RefCell<Rust_GUI::Window<'a>>>,
     Rc<RefCell<i32>>,
-    Rc<RefCell<rust_imgui::Button>>,
+    Rc<RefCell<Rust_GUI::Button>>,
 ) {
     let check_box = Checkbox::new("show Dear ImGui demo window".into());
     check_box.borrow_mut().set_callback(show_demo_window);

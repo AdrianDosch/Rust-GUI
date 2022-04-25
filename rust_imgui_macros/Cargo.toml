@@ -1,5 +1,5 @@
 [package]
-name = "rust_imgui_macros"
+name = "Rust_GUI_macros"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,5 +9,5 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-syn = "*"
-quote = "*"
+syn = "1.0.91"
+quote = "1.0.18"

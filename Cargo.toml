@@ -1,14 +1,18 @@
 [package]
-name = "rust_imgui"
+name = "Rust-GUI"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+description = "This project is a wrapper of the c++ library Dear ImGui to implement a simple GUI fast."
+documentation = "https://github.com/AdrianDosch/Rust-GUI"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derivative = "*"
-lazy_static = "*"
-rust_imgui_macros = {path = "./rust_imgui_macros"}
+derivative = "2.2.0"
+lazy_static = "1.4.0"
+Rust_GUI_macros = {path = "./rust_imgui_macros", version = "0.1.0"}
 
 [build-dependencies]
-cc = "*"
+cc = "1.0.73"
