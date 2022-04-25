@@ -15,7 +15,7 @@ pub struct GUI<'a> {
 
 pub struct Window<'a> {
     pub items: Vec<&'a dyn ImGuiGlue>,
-    show: bool,
+    pub show: bool,
     pub name: String,
     pub components: Vec<Rc<RefCell<dyn ImGuiGlue>>>,
 }
@@ -128,7 +128,7 @@ impl<'a> ImGuiGlue for Window<'a> {
                 name = " ".into();
             }
             name.push('\0');
-            unsafe { ImGui_Begin(name.as_ptr(), &self.show) }
+            unsafe { ImGui_Begin(name.as_ptr(), &self.show, 0) }
             for item in &self.items {
                 item.render();
             }

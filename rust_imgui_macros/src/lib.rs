@@ -29,12 +29,12 @@ fn impl_callback(ast: &syn::DeriveInput) -> TokenStream {
 }
 
 #[proc_macro_derive(ImGuiGlue)]
-pub fn ImGuiGlue_derive(input: TokenStream) -> TokenStream {
+pub fn im_gui_glue_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
-    impl_ImGuiGlue(&ast)
+    impl_im_gui_glue(&ast)
 }
 
-fn impl_ImGuiGlue(ast: &syn::DeriveInput) -> TokenStream {
+fn impl_im_gui_glue(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let fields = &ast.data;
 

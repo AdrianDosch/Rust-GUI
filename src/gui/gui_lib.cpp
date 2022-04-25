@@ -100,6 +100,7 @@ extern "C" GUI init_gui()
     const char* glsl_version = "#version 130";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    // glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
@@ -109,6 +110,8 @@ extern "C" GUI init_gui()
     if (window == NULL)
         std::cout << "window eror!!!\n";
         //return 1;
+    // glfwHideWindow(window);
+    // glfwIconifyWindow(window);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -175,6 +178,7 @@ extern "C" void start_frame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 }
 
 extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImVec4 clear_color) {
@@ -183,7 +187,7 @@ extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImVec4 clear_color) 
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClearColor(0,0,0,0);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
@@ -197,7 +201,6 @@ extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImVec4 clear_color) 
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
         }
-
         glfwSwapBuffers(window);
 }
 
@@ -229,8 +232,8 @@ extern "C" void ImGui_Button(const char* text, bool* value) {
     *value = ImGui::Button(text);
 }
 
-extern "C" void ImGui_Begin(const char* name, bool* close) {
-    ImGui::Begin(name, close);
+extern "C" void ImGui_Begin(const char* name, bool* close, int flags) {
+    ImGui::Begin(name, close, flags);
 }
 
 extern "C" void ImGui_End() {
