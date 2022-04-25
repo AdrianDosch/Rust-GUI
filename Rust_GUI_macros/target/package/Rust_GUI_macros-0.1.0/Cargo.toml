@@ -14,6 +14,7 @@ edition = "2021"
 name = "rust_gui_macros"
 version = "0.1.0"
 description = "This project is a part of the library rust-gui."
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/AdrianDosch/Rust-GUI"
 resolver = "2"
 

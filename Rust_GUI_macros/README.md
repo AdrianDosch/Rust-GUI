@@ -1,0 +1,1 @@
+This project is a part of the library rust-gui.
