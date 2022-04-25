@@ -7,7 +7,7 @@ fn def_win1<'a>() -> (
     Rc<RefCell<i32>>,
     Rc<RefCell<rust_imgui::Button>>,
 ) {
-    let check_box = Checkbox::new("show demo window".into());
+    let check_box = Checkbox::new("show Dear ImGui demo window".into());
     check_box.borrow_mut().set_callback(show_demo_window);
 
     let button = Button::new("click me".into());
@@ -40,8 +40,8 @@ fn def_win1<'a>() -> (
     (window, counter, button)
 }
 
-fn def_win2<'a>(name: &str, contens: &str) -> Rc<RefCell<Window<'a>>> {
-    let text = Text::new(contens.into());
+fn def_win2<'a>(name: &str, contents: &str) -> Rc<RefCell<Window<'a>>> {
+    let text = Text::new(contents.into());
     let window = Window::new(name.into());
     build_window!(window, text);
     window
@@ -57,6 +57,8 @@ fn main() {
 
     while !gui.should_close() {
         gui.update(None);
+
+        //use widgets without callback functions
         if button.borrow().value {
             println!("value: {:?}", counter.borrow());
             button.borrow_mut().label = "you clicked me!".into();

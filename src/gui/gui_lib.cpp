@@ -20,56 +20,13 @@
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
-extern "C" struct Window1
-{
-    bool show_demo_window;
-    bool show_another_window;
-};
-
+//acts as replacement of the ImVec4 struct
 extern "C" struct ImGui_Vec4 {
     float x;
     float y;
     float z;
     float w;
 };
-
-extern "C" struct Variables {
-    ImGui_Vec4 color;
-    Window1 window1;
-};
-
-extern "C" void show_demo_window() {
-    ImGui::ShowDemoWindow();
-}
-
-void define_guis(Variables* vars) {       
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (vars->window1.show_demo_window)
-            ImGui::ShowDemoWindow(&vars->window1.show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-        if (vars->window1.show_another_window)
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!", &vars->window1.show_another_window); // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &vars->window1.show_demo_window);      // Edit bools storing our window open/close state
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&vars->color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-}
 
 extern "C" struct GUI {
     GLFWwindow* window;
@@ -188,8 +145,6 @@ extern "C" void start_frame() {
     ImGui::DockSpaceOverViewport();
 }
 
-#include <iostream>
-
 extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImGui_Vec4 clear_color) {
         // Rendering
         ImGui::Render();
@@ -212,12 +167,6 @@ extern "C" void end_frame(GLFWwindow* window, ImGuiIO* io,  ImGui_Vec4 clear_col
             glfwMakeContextCurrent(backup_current_context);
         }
         glfwSwapBuffers(window);
-}
-
-extern "C" void update_gui(GUI* handle, Variables* vars) {  
-    start_frame();
-    define_guis(vars);
-    end_frame(handle->window, handle->io, vars->color);
 }
 
 extern "C" void destroy_gui(void* window) {
@@ -264,4 +213,8 @@ extern "C" void ImGui_SliderInt(const char* label, int* value, int min_val, int 
 
 extern "C" void ImGui_SliderFloat(const char* label, float* value, float v_min, float v_max) {
     ImGui::SliderFloat(label, value, v_min, v_max, "%.3f");
+}
+
+extern "C" void show_demo_window() {
+    ImGui::ShowDemoWindow();
 }

@@ -13,71 +13,6 @@ pub struct GUI<'a> {
     should_close: bool,
 }
 
-pub struct Window<'a> {
-    pub items: Vec<&'a dyn ImGuiGlue>,
-    pub show: bool,
-    pub name: String,
-    pub components: Vec<Rc<RefCell<dyn ImGuiGlue>>>,
-    id: u32,
-}
-
-lazy_static::lazy_static! {
-    static ref UNIQUE_ID: Mutex<u32> = Mutex::new(0u32);
-}
-
-impl<'a> Window<'a> {
-    pub fn new(name: String) -> Rc<RefCell<Window<'a>>> {
-        let mut id = UNIQUE_ID.lock().unwrap();
-        let window = Rc::new(RefCell::new(Window {
-            items: vec![],
-            show: true,
-            name,
-            components: vec![],
-            id: id.clone(),
-        }));
-        *id += 1;
-        window
-    }
-
-    pub fn append<T: ImGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
-        self.components.push(comp);
-    }
-}
-
-#[macro_export]
-macro_rules! build_window {
-    ($a:expr, $b:expr) => {
-        $a.borrow_mut().append($b.clone());
-    };
-
-    ($a:expr, $b:expr, $c:expr) => {
-        $a.borrow_mut().append($b.clone());
-        $a.borrow_mut().append($c.clone());
-    };
-
-    ($a:expr, $b:expr, $($c:tt)*) => {
-        $a.borrow_mut().append($b.clone());
-        build_window!($a,$($c)*)
-    };
-}
-
-#[macro_export]
-macro_rules! build_gui {
-    ($a:expr, $b:expr) => {
-        $a.add_window($b.clone());
-    };
-
-    ($a:expr, $b:expr, $c:expr) => {
-        $a.add_window($b.clone());
-        $a.add_window($c.clone());
-    };
-
-    ($a:expr, $b:expr, $($c:tt)*) => {
-        $a.add_window($b.clone());
-        build_window!($a,$($c)*)
-    };
-}
-
 #[macro_export]
 //macro from webplatform
 macro_rules! enclose {
@@ -149,6 +84,71 @@ impl<'a> Drop for GUI<'a> {
             destroy_gui(self.glfw_window);
         }
     }
+}
+
+#[macro_export]
+macro_rules! build_gui {
+    ($a:expr, $b:expr) => {
+        $a.add_window($b.clone());
+    };
+
+    ($a:expr, $b:expr, $c:expr) => {
+        $a.add_window($b.clone());
+        $a.add_window($c.clone());
+    };
+
+    ($a:expr, $b:expr, $($c:tt)*) => {
+        $a.add_window($b.clone());
+        build_window!($a,$($c)*)
+    };
+}
+
+pub struct Window<'a> {
+    pub items: Vec<&'a dyn ImGuiGlue>,
+    pub show: bool,
+    pub name: String,
+    pub components: Vec<Rc<RefCell<dyn ImGuiGlue>>>,
+    id: u32,
+}
+
+lazy_static::lazy_static! {
+    static ref UNIQUE_WINDOW_ID: Mutex<u32> = Mutex::new(0u32);
+}
+
+impl<'a> Window<'a> {
+    pub fn new(name: String) -> Rc<RefCell<Window<'a>>> {
+        let mut id = UNIQUE_WINDOW_ID.lock().unwrap();
+        let window = Rc::new(RefCell::new(Window {
+            items: vec![],
+            show: true,
+            name,
+            components: vec![],
+            id: id.clone(),
+        }));
+        *id += 1;
+        window
+    }
+
+    pub fn append<T: ImGuiGlue + 'static>(&mut self, comp: Rc<RefCell<T>>) {
+        self.components.push(comp);
+    }
+}
+
+#[macro_export]
+macro_rules! build_window {
+    ($a:expr, $b:expr) => {
+        $a.borrow_mut().append($b.clone());
+    };
+
+    ($a:expr, $b:expr, $c:expr) => {
+        $a.borrow_mut().append($b.clone());
+        $a.borrow_mut().append($c.clone());
+    };
+
+    ($a:expr, $b:expr, $($c:tt)*) => {
+        $a.borrow_mut().append($b.clone());
+        build_window!($a,$($c)*)
+    };
 }
 
 impl<'a> ImGuiGlue for Window<'a> {
@@ -239,21 +239,21 @@ impl Color {
 #[derive(ImGuiGlue)]
 pub struct SameLine {
     offset_from_start_x: f32,
-    spaceing: f32,
+    spacing: f32,
 }
 
 impl SameLine {
-    pub fn new(offset_from_start_x: Option<f32>, spaceing: Option<f32>) -> Rc<RefCell<Self>> {
+    pub fn new(offset_from_start_x: Option<f32>, spacing: Option<f32>) -> Rc<RefCell<Self>> {
         let offset_from_start_x = if let Some(x) = offset_from_start_x {
             x
         } else {
             0.0
         };
-        let spaceing = if let Some(x) = spaceing { x } else { -1.0 };
+        let spacing = if let Some(x) = spacing { x } else { -1.0 };
 
         Rc::new(RefCell::new(SameLine {
             offset_from_start_x,
-            spaceing,
+            spacing,
         }))
     }
 }
