@@ -29,6 +29,7 @@ extern "C" {
     pub fn ImGui_SameLine(offset_from_start_x: f32, spacing: f32);
     pub fn ImGui_SliderInt(label: *const u8, value: &i32, min_val: i32, max_val: i32);
     pub fn ImGui_SliderFloat(label: *const u8, value: &f32, min_val: f32, max_val: f32);
+    pub fn ImGui_InputText(label: *const u8, value: *const u8, buffer_size: i32, flags: i32);
 }
 
 #[allow(non_snake_case)]

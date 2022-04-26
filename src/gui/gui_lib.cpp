@@ -218,3 +218,7 @@ extern "C" void ImGui_SliderFloat(const char* label, float* value, float v_min, 
 extern "C" void show_demo_window() {
     ImGui::ShowDemoWindow();
 }
+
+extern "C" void ImGui_InputText(const char* label, char * buffer, int buffersize, int flags) {
+    ImGui::InputText(label, buffer, buffersize, flags);
+}

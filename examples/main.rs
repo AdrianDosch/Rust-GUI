@@ -26,6 +26,12 @@ fn def_win1<'a>() -> (
     }};
     button.borrow_mut().set_callback(callback);
 
+    let input_text = InputText::new("text input".into(), 10);
+    let callback = enclose! { (input_text) move || {
+        println!("text: {}", input_text.borrow().get_text());
+    }};
+    input_text.borrow_mut().set_callback(callback);
+
     let window = Window::new("example window".into());
     build_window!(
         window,
@@ -35,7 +41,8 @@ fn def_win1<'a>() -> (
         text,
         color,
         slider_int,
-        slider_float
+        slider_float,
+        input_text
     );
     (window, counter, button)
 }

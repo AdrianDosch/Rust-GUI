@@ -15,7 +15,7 @@
 //! 
 //! ```
 
-use std::{cell::RefCell, ffi::c_void, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, ffi::{c_void, CString}, rc::Rc, sync::Mutex, str::FromStr};
 
 use backend::*;
 mod backend;
@@ -323,6 +323,59 @@ impl SliderFloat {
         }))
     }
 }
+
+
+#[derive(Callback)]
+pub struct InputText {
+    pub label: String,
+    value: String,
+    callback: Box<dyn Fn()>,
+    buffer_size: i32,
+    pub flags: i32,
+}
+
+impl ImGuiGlue for InputText {
+    fn render(&self) {
+        let prev = self.value.clone();
+
+        let mut label = self.label.clone();
+        if label.len() == 0 {
+            label.push(' ');
+        }
+        label.push('\0');
+
+        unsafe { ImGui_InputText(label.as_ptr(), self.value.as_ptr(), self.buffer_size, self.flags); }
+
+        if prev != self.value {
+            self.call_callback();
+        }
+    }
+}
+
+impl InputText {
+    pub fn new(label: String, size: i32) -> Rc<RefCell<Self>> {
+        let mut string = String::new();
+        for _ in 0..size {
+            string.push('\0');
+        }
+        
+        Rc::new(RefCell::new( InputText {
+            label,
+            value: string,
+            buffer_size: size,
+            flags: 0,
+            callback: Box::new(|| {}),
+        }))
+    }
+
+    pub fn get_text(&self) -> &str {
+        let null_terminator_position = self.value.find('\0').unwrap();
+        
+        // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
+        &self.value[..null_terminator_position]
+    }
+}
+
 pub trait Callback {
     fn set_callback(&mut self, callback: impl Fn() + 'static);
     fn call_callback(&self);

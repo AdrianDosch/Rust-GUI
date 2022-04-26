@@ -6,6 +6,7 @@ license-file = "LICENSE"
 description = "This project is a wrapper of the c++ library Dear ImGui to implement a simple GUI fast."
 repository = "https://github.com/AdrianDosch/Rust-GUI"
 readme = "README.md"
+documentation = ""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
