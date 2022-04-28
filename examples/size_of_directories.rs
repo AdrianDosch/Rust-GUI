@@ -4,15 +4,14 @@ use rust_gui::*;
 use walkdir::WalkDir;
 
 fn get_size(dir: &str) -> u64 {
-
     let total_size = WalkDir::new(dir)
-    // .min_depth(1)
-    // .max_depth(3)
-    .into_iter()
-    .filter_map(|entry| entry.ok())
-    .filter_map(|entry| entry.metadata().ok())
-    .filter(|metadata| metadata.is_file())
-    .fold(0, |acc, m| acc + m.len());
+        // .min_depth(1)
+        // .max_depth(3)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.metadata().ok())
+        .filter(|metadata| metadata.is_file())
+        .fold(0, |acc, m| acc + m.len());
 
     total_size
 }

@@ -2,28 +2,33 @@
 //!
 //! ```
 //! use rust_gui::*;
-//! 
+//!
 //! let button = Button::new();
 //! let window = Window::new("example window".into());
 //! build_window!(window, button);
 //! let mut gui = GUI::new("example application".into());
 //! gui.add_window(window.clone());
-//! 
+//!
 //! while !gui.should_close() {
 //!     gui.update(None);
 //! }
-//! 
+//!
 //! ```
 
-use std::{cell::RefCell, ffi::{c_void, CString}, rc::Rc, sync::Mutex, str::FromStr};
+use std::{
+    cell::RefCell,
+    ffi::{c_void, CString},
+    rc::Rc,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use backend::*;
 mod backend;
 
 use rust_gui_macros::{Callback, ImGuiGlue};
 
-
-/// This struct represents the handle to the Dear ImGui library. 
+/// This struct represents the handle to the Dear ImGui library.
 /// Use the Gui::new() function to create a context. You can add Windows to the gui by using the function gui.add_window().
 /// After adding all windows, use the gui.update() function to render the gui.
 pub struct GUI<'a> {
@@ -324,7 +329,6 @@ impl SliderFloat {
     }
 }
 
-
 #[derive(Callback)]
 pub struct InputText {
     pub label: String,
@@ -344,7 +348,14 @@ impl ImGuiGlue for InputText {
         }
         label.push('\0');
 
-        unsafe { ImGui_InputText(label.as_ptr(), self.value.as_ptr(), self.buffer_size, self.flags); }
+        unsafe {
+            ImGui_InputText(
+                label.as_ptr(),
+                self.value.as_ptr(),
+                self.buffer_size,
+                self.flags,
+            );
+        }
 
         if prev != self.value {
             self.call_callback();
@@ -358,8 +369,8 @@ impl InputText {
         for _ in 0..size {
             string.push('\0');
         }
-        
-        Rc::new(RefCell::new( InputText {
+
+        Rc::new(RefCell::new(InputText {
             label,
             value: string,
             buffer_size: size,
@@ -370,7 +381,7 @@ impl InputText {
 
     pub fn get_text(&self) -> &str {
         let null_terminator_position = self.value.find('\0').unwrap();
-        
+
         // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
         &self.value[..null_terminator_position]
     }
@@ -391,8 +402,14 @@ pub struct GUI2 {
 impl GUI2 {
     pub fn new(label: &str) -> Self {
         let window_handle;
-        unsafe { window_handle = init_gui("label\0".as_ptr()); }
-        GUI2 { windows: vec![] , glfw_window: window_handle.window, io: window_handle.io}
+        unsafe {
+            window_handle = init_gui("label\0".as_ptr());
+        }
+        GUI2 {
+            windows: vec![],
+            glfw_window: window_handle.window,
+            io: window_handle.io,
+        }
     }
 
     pub fn add_window(mut self, window: Window2) -> Self {
@@ -401,12 +418,22 @@ impl GUI2 {
     }
 
     pub fn update(&mut self) {
-
         unsafe { start_frame() }
         for window in &mut self.windows {
             window.update();
         }
-        unsafe { end_frame(self.glfw_window, self.io, ImGui_Vec4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }) }
+        unsafe {
+            end_frame(
+                self.glfw_window,
+                self.io,
+                ImGui_Vec4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    w: 1.0,
+                },
+            )
+        }
     }
 
     pub fn should_close(&self) -> bool {
@@ -418,9 +445,11 @@ impl GUI2 {
         false
     }
 
-    pub fn get_window(&mut self, idx: i32) -> &mut Window2{
+    pub fn get_window(&mut self, idx: i32) -> &mut Window2 {
         let x;
-        unsafe { x = self.windows.get_unchecked_mut(0); }
+        unsafe {
+            x = self.windows.get_unchecked_mut(0);
+        }
         x
     }
 }
@@ -428,12 +457,16 @@ impl GUI2 {
 pub struct Window2 {
     pub buttons: Vec<Button2>,
     pub text: Vec<Text2>,
-    pub text_input: Vec<InputText2>
+    pub text_input: Vec<InputText2>,
 }
 
 impl Window2 {
     pub fn new(label: &str) -> Self {
-        Window2 { buttons: vec![], text: vec![], text_input: vec![] }
+        Window2 {
+            buttons: vec![],
+            text: vec![],
+            text_input: vec![],
+        }
     }
 
     pub fn add_button(mut self, button: Button2) -> Self {
@@ -456,43 +489,47 @@ impl Window2 {
         for button in &mut self.buttons {
             button.update()
         }
-        
+
         for text in &mut self.text {
             text.update()
         }
-        
+
         for text_input in &mut self.text_input {
             text_input.update()
         }
-        unsafe { ImGui_End(); }
+        unsafe {
+            ImGui_End();
+        }
     }
     pub fn get_text(&mut self) -> &mut Text2 {
         &mut self.text[0]
     }
-     
 }
-    
+
+
 
 pub struct Text2 {
-    pub label: String
+    pub label: Arc<Mutex<String>>,
 }
 
 impl Text2 {
-    pub fn new(label: &str) -> Self{
+    pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
         if !label.ends_with("\0") {
             label.push('\0');
         }
-        Text2 { label }
+        Text2 {
+            label: Arc::new(Mutex::new(label)),
+        }
     }
 }
 
 pub struct InputText2 {
-    pub label: String,
-    pub value: String,
+    pub label: Arc<Mutex<String>>,
+    pub value: Arc<Mutex<String>>,
     // callback: Box<dyn Fn()>,
-    buffer_size: i32,
-    pub flags: i32,
+    buffer_size: Arc<Mutex<i32>>,
+    pub flags: Arc<Mutex<i32>>,
 }
 
 impl InputText2 {
@@ -501,28 +538,27 @@ impl InputText2 {
         for _ in 0..size {
             string.push('\0');
         }
-        
+
         InputText2 {
-            label: String::from_str(label).unwrap(),
-            value: string,
-            buffer_size: size,
-            flags: 0,
+            label: Arc::new(Mutex::new(String::from_str(label).unwrap())),
+            value: Arc::new(Mutex::new(string)),
+            buffer_size: Arc::new(Mutex::new(size)),
+            flags: Arc::new(Mutex::new(0)),
             // callback: Box::new(|| {}),
         }
     }
 
-    pub fn get_text(&self) -> &str {
-        let null_terminator_position = self.value.find('\0').unwrap();
-        
+    pub fn get_text(&self) -> String {
+        let null_terminator_position = self.value.lock().unwrap().find('\0').unwrap();
+
         // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
-        &self.value[..null_terminator_position]
+        String::from_str(&self.value.lock().unwrap()[..null_terminator_position]).unwrap()
     }
 }
 
-
 pub struct Button2 {
-    label: String,
-    value: bool,
+    label: Arc<Mutex<String>>,
+    value: Arc<Mutex<bool>>,
 }
 
 impl Button2 {
@@ -531,16 +567,46 @@ impl Button2 {
         if !label.ends_with("\0") {
             label.push('\0');
         }
-        Button2 { value: false, label}
+        Button2 {
+            value: Arc::new(Mutex::new(false)),
+            label: Arc::new(Mutex::new(label)),
+        }
     }
 }
+
+//tmp
+// impl Widget for Text2 {
+//     fn update(&mut self) {
+//         unsafe {
+//             ImGui_Text(string_to_send_c_str(&*self.label.lock().unwrap()).as_ptr());
+//         }
+//     }
+// }
+//
+//tmp
+// impl Widget for InputText2 {
+//     fn update(&mut self) {
+//         unsafe {
+//             ImGui_InputText(
+//                 string_to_send_c_str(&*self.label.lock().unwrap()).as_ptr(),
+//                 self.value.lock().unwrap().as_ptr().clone(),
+//                 self.buffer_size.lock().unwrap().clone(),
+//                 self.flags.lock().unwrap().clone(),
+//             );
+//         }
+//     }
+// }
 
 macro_rules! impl_widget {
     ($ty: ty, $fun: ident, $($(&self.$param: ident)? $(self.$param1: ident)? $(.$func: ident ())?), *) => {
         paste::paste! {
         impl Widget for $ty {
                 fn update(&mut self) {
-                    unsafe { [<$fun>](string_to_send_c_str(&self.label).as_ptr(), $($(&self.$param)? $(self.$param1)? $(.$func())?), *); }
+                    unsafe { [<$fun>](string_to_send_c_str(&self.label.lock().unwrap()).as_ptr(),
+                                        $($(&self.$param.lock().unwrap())?
+                                        $(self.$param1.lock().unwrap())?
+                                        $(.$func())? .clone()),
+                                    *); }
                 }
             }
         }
@@ -549,7 +615,7 @@ macro_rules! impl_widget {
         paste::paste! {
         impl Widget for $ty {
                 fn update(&mut self) {
-                    unsafe { [<$fun>](string_to_send_c_str(&self.label).as_ptr()); }
+                    unsafe { [<$fun>](string_to_send_c_str(&self.label.lock().unwrap()).as_ptr()); }
                 }
             }
         }
