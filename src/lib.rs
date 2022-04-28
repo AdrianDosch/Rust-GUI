@@ -382,20 +382,20 @@ pub trait Callback {
 }
 
 //////////////////////////////////////////////////////////////
-pub struct GUI2<T> {
-    windows: Vec<Window2<T>>,
+pub struct GUI2 {
+    pub windows: Vec<Window2>,
     glfw_window: &'static c_void,
     io: &'static c_void,
 }
 
-impl<T: Widget> GUI2<T> {
+impl GUI2 {
     pub fn new(label: &str) -> Self {
         let window_handle;
         unsafe { window_handle = init_gui("label\0".as_ptr()); }
         GUI2 { windows: vec![] , glfw_window: window_handle.window, io: window_handle.io}
     }
 
-    pub fn add_window(mut self, window: Window2<T>) -> Self {
+    pub fn add_window(mut self, window: Window2) -> Self {
         self.windows.push(window);
         self
     }
@@ -408,50 +408,114 @@ impl<T: Widget> GUI2<T> {
         }
         unsafe { end_frame(self.glfw_window, self.io, ImGui_Vec4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }) }
     }
-}
 
-pub struct Window2<T> {
-    widgets: Vec<T>
-}
-
-impl<T: Widget> Window2<T> {
-    pub fn new(label: &str) -> Self {
-        Window2 { widgets: vec![] }
+    pub fn should_close(&self) -> bool {
+        unsafe {
+            if close_window(self.glfw_window) {
+                return true;
+            }
+        }
+        false
     }
 
-    pub fn add(mut self, widget: T) -> Self {
-        self.widgets.push(widget);
+    pub fn get_window(&mut self, idx: i32) -> &mut Window2{
+        let x;
+        unsafe { x = self.windows.get_unchecked_mut(0); }
+        x
+    }
+}
+
+pub struct Window2 {
+    pub buttons: Vec<Button2>,
+    pub text: Vec<Text2>,
+    pub text_input: Vec<InputText2>
+}
+
+impl Window2 {
+    pub fn new(label: &str) -> Self {
+        Window2 { buttons: vec![], text: vec![], text_input: vec![] }
+    }
+
+    pub fn add_button(mut self, button: Button2) -> Self {
+        self.buttons.push(button);
+        self
+    }
+
+    pub fn add_text(mut self, text: Text2) -> Self {
+        self.text.push(text);
+        self
+    }
+
+    pub fn add_input_text(mut self, text: InputText2) -> Self {
+        self.text_input.push(text);
         self
     }
 
     pub fn update(&mut self) {
         unsafe { ImGui_Begin("label\0".as_ptr(), &true, 0) }
-        for widget in &mut self.widgets {
-            widget.update()
+        for button in &mut self.buttons {
+            button.update()
+        }
+        
+        for text in &mut self.text {
+            text.update()
+        }
+        
+        for text_input in &mut self.text_input {
+            text_input.update()
         }
         unsafe { ImGui_End(); }
     }
-
+    pub fn get_text(&mut self) -> &mut Text2 {
+        &mut self.text[0]
+    }
+     
 }
     
 
 pub struct Text2 {
-    label: String
+    pub label: String
 }
 
 impl Text2 {
-    pub fn new() -> Self{
-        Text2 { label: String::new() }
+    pub fn new(label: &str) -> Self{
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0") {
+            label.push('\0');
+        }
+        Text2 { label }
     }
 }
 
 pub struct InputText2 {
-    label: String
+    pub label: String,
+    pub value: String,
+    // callback: Box<dyn Fn()>,
+    buffer_size: i32,
+    pub flags: i32,
 }
 
 impl InputText2 {
-    pub fn new() -> Self {
-        InputText2 { label: String::new() }
+    pub fn new(label: &str, size: i32) -> Self {
+        let mut string = String::new();
+        for _ in 0..size {
+            string.push('\0');
+        }
+        
+        InputText2 {
+            label: String::from_str(label).unwrap(),
+            value: string,
+            buffer_size: size,
+            flags: 0,
+            // callback: Box::new(|| {}),
+        }
+    }
+
+    pub fn get_text(&self) -> &str {
+        let null_terminator_position = self.value.find('\0').unwrap();
+        
+        // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
+        &self.value[..null_terminator_position]
     }
 }
 
@@ -463,91 +527,20 @@ pub struct Button2 {
 
 impl Button2 {
     pub fn new(label: &str) -> Self {
-        Button2 { value: false, label: String::from_str("label\0").unwrap()}
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0") {
+            label.push('\0');
+        }
+        Button2 { value: false, label}
     }
-}
-
-
-trait HasLabel {
-    fn label(&self) -> &str;
-}
-
-
-trait HasCallback<T> {
-    fn value(&self) -> T;
-    fn callback(&self) -> fn() -> ();
-}
-
-trait Render {
-    fn render(&mut self);
-}
-
-// impl Render for Button2 {
-//     fn render(&mut self) {
-//         let previous_val = self.val.clone();
-//         unsafe { ImGui_Button(self.label.as_ptr(), &self.val) }
-//     }
-// } 
-
-impl<T: Render + HasCallback<T> + Clone + PartialEq> Widget for T {
-    fn update(&mut self) {
-        let copy = self.value().clone();
-        self.render();
-        if copy != self.value() {
-            self.callback()();
-        }
-    }
-}
-
-// impl<T: Render + ?HasCallback> Widget for T {
-//     fn update(&mut self) {
-//         self.render();
-//     }
-// }
-
-#[macro_export]
-macro_rules! fn_params {
-    ($pat: tt $p1: ident) => {
-        paste::paste! {
-            [<$pat self.$p1>]
-        }
-    };
-
-    ($p1: ident) => {
-        paste::paste! {
-            [<self.$p1>]
-        }
-    };
-
-    ($pat1: tt $p1: ident, $($pat: tt $p: ident), *) => {
-        fn_params!($pat1 $p1);, fn_params!($($pat $p)*);
-    };
 }
 
 macro_rules! impl_widget {
-    // ($ty: ty, $fun: ident, $pat: tt $p1: ident) => {
-    //     paste::paste! {
-    //     impl Widget for $ty {
-    //             fn update(&mut self) {
-    //                 unsafe { [<$fun>](string_to_send_c_str($pat self.$p1).as_ptr()); }
-    //             }
-    //         }
-    //     }
-    // };
-    // ($ty: ty, $fun: ident, $($($ex: expr ;)? $pat: tt), *) => {
-    //     paste::paste! {
-    //     impl Widget for $ty {
-    //             fn update(&mut self) {
-    //                 unsafe { [<$fun>](string_to_send_c_str(&self.label).as_ptr(), $($pat)*); }
-    //             }
-    //         }
-    //     }
-    // };
-    ($ty: ty, $fun: ident, $($(&self.$param: ident)? $(self.$param1: ident)?), *) => {
+    ($ty: ty, $fun: ident, $($(&self.$param: ident)? $(self.$param1: ident)? $(.$func: ident ())?), *) => {
         paste::paste! {
         impl Widget for $ty {
                 fn update(&mut self) {
-                    unsafe { [<$fun>](string_to_send_c_str(&self.label).as_ptr(), $($(&self.$param)? $(self.$param1)?), *); }
+                    unsafe { [<$fun>](string_to_send_c_str(&self.label).as_ptr(), $($(&self.$param)? $(self.$param1)? $(.$func())?), *); }
                 }
             }
         }
@@ -563,9 +556,9 @@ macro_rules! impl_widget {
     };
 }
 
-// builder!(Text2, ImGui_Text,);
 impl_widget!(Button2, ImGui_Button, &self.value);
 impl_widget!(Text2, ImGui_Text);
+impl_widget!(InputText2, ImGui_InputText, self.value.as_ptr(), self.buffer_size, self.flags);
 
 fn string_to_send_c_str(label: &String) -> String {
     if label.ends_with("\0") {
