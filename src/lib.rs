@@ -393,10 +393,12 @@ pub trait Callback {
 }
 
 //////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone)]
 pub struct GUI2 {
-    pub windows: Vec<Window2>,
-    glfw_window: &'static c_void,
-    io: &'static c_void,
+    pub windows: Arc<Mutex<Vec<Window2>>>,
+    glfw_window: Arc<Mutex<&'static c_void>>,
+    io: Arc<Mutex<&'static c_void>>,
 }
 
 impl GUI2 {
@@ -406,26 +408,26 @@ impl GUI2 {
             window_handle = init_gui("label\0".as_ptr());
         }
         GUI2 {
-            windows: vec![],
-            glfw_window: window_handle.window,
-            io: window_handle.io,
+            windows: Arc::new(Mutex::new(vec![])),
+            glfw_window: Arc::new(Mutex::new(window_handle.window)),
+            io: Arc::new(Mutex::new(window_handle.io)),
         }
     }
 
     pub fn add_window(mut self, window: Window2) -> Self {
-        self.windows.push(window);
+        self.windows.lock().unwrap().push(window);
         self
     }
 
     pub fn update(&mut self) {
         unsafe { start_frame() }
-        for window in &mut self.windows {
+        for window in &mut *self.windows.lock().unwrap() {
             window.update();
         }
         unsafe {
             end_frame(
-                self.glfw_window,
-                self.io,
+                *self.glfw_window.lock().unwrap(),
+                *self.io.lock().unwrap(),
                 ImGui_Vec4 {
                     x: 1.0,
                     y: 1.0,
@@ -438,76 +440,66 @@ impl GUI2 {
 
     pub fn should_close(&self) -> bool {
         unsafe {
-            if close_window(self.glfw_window) {
+            if close_window(*self.glfw_window.lock().unwrap()) {
                 return true;
             }
         }
         false
     }
-
-    pub fn get_window(&mut self, idx: i32) -> &mut Window2 {
-        let x;
-        unsafe {
-            x = self.windows.get_unchecked_mut(0);
-        }
-        x
-    }
 }
 
+#[derive(Debug, Clone)]
 pub struct Window2 {
-    pub buttons: Vec<Button2>,
-    pub text: Vec<Text2>,
-    pub text_input: Vec<InputText2>,
+    pub buttons: Arc<Mutex<Vec<Button2>>>,
+    pub text: Arc<Mutex<Vec<Text2>>>,
+    pub text_input:Arc<Mutex<Vec<InputText2>>>,
 }
 
 impl Window2 {
     pub fn new(label: &str) -> Self {
         Window2 {
-            buttons: vec![],
-            text: vec![],
-            text_input: vec![],
+            buttons: Arc::new(Mutex::new(vec![])),
+            text: Arc::new(Mutex::new(vec![])),
+            text_input: Arc::new(Mutex::new(vec![])),
         }
     }
 
     pub fn add_button(mut self, button: Button2) -> Self {
-        self.buttons.push(button);
+        self.buttons.lock().unwrap().push(button);
         self
     }
 
     pub fn add_text(mut self, text: Text2) -> Self {
-        self.text.push(text);
+        self.text.lock().unwrap().push(text);
         self
     }
 
     pub fn add_input_text(mut self, text: InputText2) -> Self {
-        self.text_input.push(text);
+        self.text_input.lock().unwrap().push(text);
         self
     }
 
     pub fn update(&mut self) {
         unsafe { ImGui_Begin("label\0".as_ptr(), &true, 0) }
-        for button in &mut self.buttons {
+        for button in &mut *self.buttons.lock().unwrap() {
             button.update()
         }
 
-        for text in &mut self.text {
+        for text in &mut *self.text.lock().unwrap() {
             text.update()
         }
 
-        for text_input in &mut self.text_input {
+        for text_input in &mut *self.text_input.lock().unwrap() {
             text_input.update()
         }
         unsafe {
             ImGui_End();
         }
     }
-    pub fn get_text(&mut self) -> &mut Text2 {
-        &mut self.text[0]
-    }
 }
 
 
-
+#[derive(Debug, Clone)]
 pub struct Text2 {
     pub label: Arc<Mutex<String>>,
 }
@@ -524,6 +516,7 @@ impl Text2 {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct InputText2 {
     pub label: Arc<Mutex<String>>,
     pub value: Arc<Mutex<String>>,
@@ -556,6 +549,7 @@ impl InputText2 {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Button2 {
     label: Arc<Mutex<String>>,
     value: Arc<Mutex<bool>>,

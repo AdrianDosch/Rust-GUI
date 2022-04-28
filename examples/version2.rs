@@ -1,19 +1,9 @@
-use std::str::FromStr;
+use std::{str::FromStr, thread};
 
 use rust_gui::*;
 
 fn main() {
-    // println!("---start---");
-
-    // // let gui = GUI2::new("label")
-    // //     .add_window(Window2::new("label")
-    // //         .add(InputText2::new())
-    // //         .add(Text2::new()))
-    // //     .add_window(Window2::new("label")
-    // //         .add(Text2::new())
-    // //         .add(Button2::new("label")
-    // //             .set_callback(||{})));
-
+    println!("---start---");
     let mut gui = GUI2::new("winWinodw").add_window(
         Window2::new("window")
             .add_text(Text2::new("text"))
@@ -21,18 +11,32 @@ fn main() {
             .add_input_text(InputText2::new("input\0", 255)),
     );
 
+    thread::spawn(enclose! { (gui) move || {
+        let windows = &mut *gui.windows.lock().unwrap();
+        let input = &mut windows[0].text_input.lock().unwrap()[0];
+        let output = &mut windows[0].text.lock().unwrap()[0];
+        {
+            let mut ptr = output.label.lock().unwrap();
+            *ptr = input.get_text();
+        }
+        {
+            *output.label.lock().unwrap() = String::from_str(&input.get_text()).unwrap();
+        }
+    }});
+
     while !gui.should_close() {
         gui.update();
-        let input = &gui.windows[0].text_input[0];
-        let output = &gui.windows[0].text[0];
-
-        let mut ptr = output.label.lock().unwrap();
-        *ptr = input.get_text();
-
-        // output.label = String::from_str(input.get_text()).unwrap();
-
-        // output.label = String::from_str(input.get_text()).unwrap();
+        let windows = &mut *gui.windows.lock().unwrap();
+        let input = &mut windows[0].text_input.lock().unwrap()[0];
+        let output = &mut windows[0].text.lock().unwrap()[0];
+        {
+            let mut ptr = output.label.lock().unwrap();
+            *ptr = input.get_text();
+        }
+        {
+            *output.label.lock().unwrap() = String::from_str(&input.get_text()).unwrap();
+        }
         println!("{}", input.get_text());
     }
-    // println!("---end---");
+    println!("---end---");
 }
