@@ -190,10 +190,10 @@ extern "C" void ImGui_Text(const char* text) {
 extern "C" void ImGui_Button(const char* text, bool* value) {
     // printf("%p\n",(void*)&value);
     bool test2 = ImGui::Button(text);
-    printf("return: %d\n", test2);
-    printf("previous: %d\n", *value);
+    // printf("return: %d\n", test2);
+    // printf("previous: %d\n", *value);
     *value = test2;
-    printf("after: %d\n", *value);
+    // printf("after: %d\n", *value);
 }
 
 extern "C" void ImGui_Begin(const char* name, bool* close, int flags) {
