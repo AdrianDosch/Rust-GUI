@@ -7,10 +7,9 @@ fn main() {
     let mut gui = GUI2::new("winWinodw").add_window(
         Window2::new("window")
             .add_text(Text2::new("text"))
-            .add_button(Button2::new("button")
-                .callback(||{
-                    println!("button pressed!");
-                }))
+            .add_button(Button2::new("button").callback(|| {
+                println!("button pressed!");
+            }))
             .add_input_text(InputText2::new("input\0", 255)),
     );
 

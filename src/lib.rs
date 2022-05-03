@@ -1,25 +1,29 @@
 mod backend;
 
-use std::{ffi::c_void, thread::{self, JoinHandle}, time::{self, Duration}};
 use backend::*;
+use std::{
+    ffi::c_void,
+    thread::{self, JoinHandle},
+    time::{self, Duration}, sync::{Arc, mpsc::{self, Receiver}}, str::FromStr,
+};
 use tokio::sync::RwLock;
 
 pub struct Gui {
     windows: Vec<Window>,
-    glfw_window: Option<&'static c_void>,
-    io: Option<&'static c_void>,
-    should_close: bool,
-    thread_handle: Option<JoinHandle<()>>,
+    glfw_window: RwLock<Option<&'static c_void>>,
+    io: RwLock<Option<&'static c_void>>,
+    should_close: RwLock<bool>,
+    thread_handle: RwLock<Option<JoinHandle<()>>>,
 }
 
 impl Gui {
     pub fn new() -> Gui {
         Gui {
             windows: vec![],
-            glfw_window: None,
-            io: None,
-            should_close: false,
-            thread_handle: None
+            glfw_window: RwLock::new(None),
+            io: RwLock::new(None),
+            should_close: RwLock::new(false),
+            thread_handle: RwLock::new(None),
         }
     }
 
@@ -28,96 +32,108 @@ impl Gui {
         self
     }
 
-    pub fn set<T>(&mut self, window_idx: usize, widget: Widget, value: T) -> Result<(), WidgetNotFoundError>
-    where Window: SetWidget<T> {
-        if let Some(window) = self.windows.get_mut(window_idx) {
-            window.set(widget, value);
-            return Ok(());
+    pub fn set<T>(
+        &self,
+        window_idx: usize,
+        widget: Widget,
+        value: T,
+    ) -> Result<(), WidgetNotFoundError>
+    where
+        Window: AccessWidget<T>,
+    {
+        if let Some(window) = self.windows.get(window_idx) {
+            AccessWidget::set(window, widget, value);
+            Ok(())
         } else {
-            return Err(WidgetNotFoundError);
+            Err(WidgetNotFoundError)
         }
-                
     }
 
-    pub fn get<T>(&self, window_idx: usize, widget: Widget) -> Result<&T, WidgetNotFoundError>
-    where Window: SetWidget<T> {
+    pub fn get<T>(&self, window_idx: usize, widget: Widget) -> Result<T, WidgetNotFoundError>
+    where
+        Window: AccessWidget<T>,
+    {
         if let Some(window) = self.windows.get(window_idx) {
-            return Ok(window.get(widget));
+            Ok(AccessWidget::get(window, widget))
         } else {
-            return Err(WidgetNotFoundError);
+            Err(WidgetNotFoundError)
         }
     }
 
     pub fn build(self) -> GuiHandle {
-        Arc::new(RwLock::new(self))
+        Arc::new(self)
     }
 
     pub fn should_close(&self) -> bool {
         unsafe {
-            if close_window(self.glfw_window.unwrap()) {
+            if close_window(self.glfw_window.blocking_read().unwrap()) {
                 return true;
             }
         }
-        self.should_close
+        false
     }
 }
 
-pub type GuiHandle = Arc<RwLock<Gui>>; 
+pub type GuiHandle = Arc<Gui>;
 pub trait Start {
-    fn start(&self);
+    fn start(&self) -> Receiver<()>;
     fn is_running(&self) -> bool;
 }
 
 impl Start for GuiHandle {
-    fn start(&self) {
+    fn start(&self) -> Receiver<()>{
         let cp = self.clone();
+        let (tx, rx) = mpsc::channel();
         let handle = thread::spawn(move || {
             unsafe {
                 let window_handle = init_gui("test_label".as_ptr());
-                cp.blocking_write().glfw_window = Some(window_handle.window);
-                cp.blocking_write().io = Some(window_handle.io);
+                let mut x = cp.glfw_window.blocking_write();
+                *x = Some(window_handle.window);
+
+                let mut io = cp.io.blocking_write();
+                *io = Some(window_handle.io);
             }
 
-            // let mut start_time = time::Instant::now();
-            // let mut time_delta;
-            while !cp.blocking_write().should_close() {
-                let start_time = time::Instant::now();
-                cp.blocking_write().update();
-                let time_delta = time::Instant::now() - start_time;
-                println!("{:?}", time_delta);
-                // if time_delta < Duration::from_millis(1000 / 60) {
-                //     thread::sleep(Duration::from_millis(1000 / 60) - time_delta);
-                // }
+            while !cp.should_close() {
+                // let start_time = time::Instant::now();
+                cp.update();
+                tx.send(()).unwrap();
+                // let time_delta = time::Instant::now() - start_time;
+                // println!("{:?}", time_delta);
             }
         });
-        self.blocking_write().thread_handle = Some(handle);
+        let mut h = self.thread_handle.blocking_write();
+        *h = Some(handle);
+        rx
     }
 
     fn is_running(&self) -> bool {
-        // self.lock().unwrap().thread_handle.unwrap().is_running()
-        let x = Arc::strong_count(&self);
-        if x > 1 {
-            true
-        } else {
-            false
-        }
+        let x = Arc::strong_count(self);
+        x > 1 
+        
     }
 }
 
 impl Update for Gui {
-    fn update(&mut self) {
-        unsafe {start_frame()}
-        for window in &mut self.windows {
+    fn update(&self) {
+        unsafe { start_frame() }
+        for window in &self.windows {
             window.update();
         }
         let clear_color = ImGui_Vec4 {
-                                x: 0.3,
-                                y: 0.3,
-                                z: 0.3,
-                                w: 1.0,
-                            };
+            x: 0.3,
+            y: 0.3,
+            z: 0.3,
+            w: 1.0,
+        };
 
-        unsafe {end_frame(self.glfw_window.unwrap(), self.io.unwrap(), clear_color.clone());}
+        unsafe {
+            end_frame(
+                self.glfw_window.blocking_read().unwrap(),
+                self.io.blocking_read().unwrap(),
+                clear_color,
+            );
+        }
     }
 }
 
@@ -133,122 +149,277 @@ pub enum Widget {
 }
 
 pub struct Window {
-    buttons: Vec<Button>,
-    text: Vec<Text>,
-    checkboxes: Vec<Checkbox>,
+    buttons: Vec<RwLock<Button>>,
+    text: Vec<RwLock<Text>>,
+    checkboxes: Vec<RwLock<Checkbox>>,
+    text_input: Vec<RwLock<InputText>>,
+    input_color: Vec<RwLock<InputColor>>,
+    widgets: Vec<RwLock<Box<dyn Update + Send + Sync>>>
 }
 
 impl Window {
     pub fn new() -> Self {
-        Window { buttons: vec![], text: vec![], checkboxes: vec![] }
+        Window {
+            buttons: vec![],
+            text: vec![],
+            checkboxes: vec![],
+            text_input: vec![],
+            input_color: vec![],
+            widgets: vec![],
+        }
     }
 
     pub fn button(mut self, button: Button) -> Self {
-        self.buttons.push(button);
+        self.buttons.push(RwLock::new(button));
         self
     }
 
     pub fn checkbox(mut self, checkbox: Checkbox) -> Self {
-        self.checkboxes.push(checkbox);
+        self.checkboxes.push(RwLock::new(checkbox));
         self
     }
 
     pub fn text(mut self, text: Text) -> Self {
-        self.text.push(text);
+        self.text.push(RwLock::new(text));
         self
     }
 
-    pub fn input_text(mut self) -> Self {
-        todo!()
+    pub fn input_text(mut self, text_input: InputText) -> Self {
+        self.text_input.push(RwLock::new(text_input));
+        self
     }
 
+    // pub fn add<T: Update + 'static + Send + Sync>(mut self, widget: T) -> Self {
+    //     self.widgets.push(RwLock::new(Box::new(widget)));
+    //     self
+    // }
 }
 
-pub trait SetWidget<T> {
-    fn set(&mut self, widget: Widget, value: T);
-    fn get(&self, widget: Widget) -> &T;
+pub trait Add<T> {
+    fn add(self, widget: T) -> Self;    
 }
 
+impl Add<Checkbox> for Window {
+    fn add(mut self, widget: Checkbox) -> Self {
+        self.checkboxes.push(RwLock::new(widget));
+        self
+    }
+}
 
-impl SetWidget<bool> for Window {
-    fn set(&mut self, widget: Widget, value: bool) {
+impl Add<InputText> for Window {
+    fn add(mut self, widget: InputText) -> Self {
+        self.text_input.push(RwLock::new(widget));
+        self
+    }
+}
+
+impl Add<Text> for Window {
+    fn add(mut self, widget: Text) -> Self {
+        self.text.push(RwLock::new(widget));
+        self
+    }
+}
+
+impl Add<Button> for Window {
+    fn add(mut self, widget: Button) -> Self {
+        self.buttons.push(RwLock::new(widget));
+        self
+    }
+}
+
+impl Add<InputColor> for Window {
+    fn add(mut self, widget: InputColor) -> Self {
+        self.input_color.push(RwLock::new(widget));
+        self
+    }
+}
+
+pub trait AccessWidget<T> {
+    fn set(&self, widget: Widget, value: T);
+    fn get(&self, widget: Widget) -> T;
+}
+
+pub trait AccessWidget2<T, U> {
+    fn set(&self, idx: usize, value: U);
+    fn get(&self, idx: usize) -> U;
+}
+
+impl AccessWidget<bool> for Window {
+    fn set(&self, widget: Widget, value: bool) {
         match widget {
-            Widget::Button(i) => self.buttons.get_mut(i).expect("there aren't enough buttons").value = value,
-            Widget::Checkbox(i) => self.checkboxes.get_mut(i).expect("msg").value = value,
-            _ => unreachable!("set widget: {:?} not implemented", widget)
+            Widget::Button(i) => self
+                .buttons
+                .get(i)
+                .expect("there aren't enough buttons")
+                .blocking_write()
+                .set(value),
+            Widget::Checkbox(i) => self
+                .checkboxes
+                .get(i)
+                .expect("msg")
+                .blocking_write()
+                .set(value),
+            _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
 
-    fn get(&self, widget: Widget) -> &bool {
+    fn get(&self, widget: Widget) -> bool {
         match widget {
-            Widget::Button(i) => &self.buttons.get(i).expect("there aren't enough buttons").value,
-            Widget::Checkbox(i) => &self.checkboxes.get(i).expect("msg").value,
-            _ => unreachable!("set widget: {:?} not implemented", widget)
+            Widget::Button(i) => {
+                self.buttons
+                    .get(i)
+                    .expect("there aren't enough buttons")
+                    .blocking_read()
+                    .value
+            }
+            Widget::Checkbox(i) => self.checkboxes.get(i).expect("msg").blocking_read().value,
+            _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
 }
 
-impl SetWidget<String> for Window {
-    fn set(&mut self, widget: Widget, value: String) {
+impl AccessWidget<String> for Window {
+    fn set(&self, widget: Widget, value: String) {
         match widget {
-            Widget::Text(i) => self.text.get_mut(i).expect("there aren't enough text widgets").value = value,
+            Widget::Text(i) => self
+                .text
+                .get(i)
+                .expect("there aren't enough text widgets")
+                .blocking_write()
+                .set(value),
             Widget::InputText(i) => todo!(),
-            _ => unreachable!("set widget: {:?} not implemented", widget)
+            _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
 
-    fn get(&self, widget: Widget) -> &String {
+    fn get(&self, widget: Widget) -> String {
         match widget {
-            Widget::Text(i) => &self.text.get(i).expect("there aren't enough text widgets").value,
-            Widget::InputText(i) => todo!(),
-            _ => unreachable!("set widget: {:?} not implemented", widget)
+            Widget::Text(i) => self
+                .text
+                .get(i)
+                .expect("there aren't enough text widgets")
+                .blocking_read()
+                .value
+                .clone(),
+            Widget::InputText(i) => self
+                .text_input
+                .get(i)
+                .expect("not enough input text")
+                .blocking_read()
+                .get_text()
+                .to_string(),
+            _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
+}
+
+pub trait Update {
+    fn update(&self);
 }
 
 impl Update for Window {
-    fn update(&mut self) {
+    fn update(&self) {
         unsafe { ImGui_Begin("windowlabel\0".as_ptr(), &true, 0) }
-        for button in &mut self.buttons {
-            button.update();
+        for button in &self.buttons {
+            button.blocking_write().update();
         }
-        for text in &mut self.text {
-            text.update()
+        for text in &self.text {
+            text.blocking_write().update()
         }
-        for checkbox in &mut self.checkboxes {
-            checkbox.update();
+        for checkbox in &self.checkboxes {
+            checkbox.blocking_write().update();
+        }
+        for text_input in &self.text_input {
+            text_input .blocking_write().update();
+        }
+        for widget in &self.widgets {
+            widget.blocking_write().update();
+        }
+        for color in &self.input_color {
+            color.blocking_write().update();
         }
         unsafe { ImGui_End() }
     }
 }
 
-pub trait Update {
-    fn update(&mut self);
+impl Update for Button {
+    fn update(&self) {
+        unsafe { ImGui_Button(self.label.as_ptr(), &self.value) }
+        if self.value {
+            (self.callback)();
+        }
+    }
+}
+
+impl Update for Text {
+    fn update(&self) {
+        unsafe { ImGui_Text(self.value.as_ptr()) }
+    }
+}
+
+impl Update for Checkbox {
+    fn update(&self) {
+        unsafe { ImGui_Checkbox(self.label.as_ptr(), &self.value) }
+    }
+}
+
+impl Update for InputText {
+    fn update(&self) {
+        unsafe { ImGui_InputText(self.label.as_ptr(), self.value.as_ptr(), self.buffersize, 0) }
+    }
+}
+
+impl Update for InputColor {
+    fn update(&self) {
+        unsafe { ImGui_ColorEdit3(self.label.as_ptr(), &self.value) }
+    }
 }
 
 pub trait Set<T> {
     fn set(&mut self, value: T);
 }
-pub struct Button {
-    value: bool,
-    callback: Box<fn()>,
-}
 
-impl Set::<bool> for Button {
+impl Set<bool> for Button {
     fn set(&mut self, value: bool) {
         self.value = value;
     }
 }
 
-impl Set::<String> for Text {
+impl Set<String> for Text {
     fn set(&mut self, value: String) {
         self.value = value;
     }
 }
 
+impl Set<bool> for Checkbox {
+    fn set(&mut self, value: bool) {
+        self.value = value;
+    }
+}
+
+impl Set<Vec<f32>> for InputColor {
+    fn set(&mut self, value: Vec<f32>) {
+        self.value = ImGui_Vec4 {x: value[0], y: value[1], z: value[2], w: value[3]};
+    }
+}
+
+pub struct Button {
+    label: String,
+    value: bool,
+    callback: Box<fn()>,
+}
+
 impl Button {
-    pub fn new() -> Self{
-        Button { value: false, callback: Box::new(|| {}) }
+    pub fn new(label: &str) -> Self {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+        Button {
+            label,
+            value: false,
+            callback: Box::new(|| {}),
+        }
     }
 
     pub fn callback(mut self, callback: fn()) -> Self {
@@ -257,48 +428,105 @@ impl Button {
     }
 }
 
-impl Update for Button {
-    fn update(&mut self) {
-        unsafe { ImGui_Button("label\0".as_ptr(), &self.value) }
-        if self.value {
-            (self.callback)();
+
+pub struct Text {
+    pub value: String,
+}
+
+impl Text {
+    pub fn new(label: &str, ) -> Self {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+        Text {
+            value: label,
         }
     }
 }
 
-pub struct Text {
-    pub value: String
-}
-
-impl Text {
-    pub fn new(label: &str) -> Self {
-        Text {value: label.into()}
-    }
-}
-
-impl Update for Text {
-    fn update(&mut self) {
-        self.value.push('\0');
-        unsafe {ImGui_Text(self.value.as_ptr())}
-        self.value.pop();
-    }
-}
-
 pub struct Checkbox {
+    label: String,
     pub value: bool,
 }
 
 impl Checkbox {
-    pub fn new() -> Self {
-        Checkbox { value: false }
+    pub fn new(label: &str) -> Self {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+        Checkbox { label, value: false }
     }
 }
 
-impl Update for Checkbox {
-    fn update(&mut self) {
-        unsafe { ImGui_Checkbox("label_box\0".as_ptr(), &self.value) }
+pub struct InputText {
+    label: String,
+    value: String,
+    buffersize: i32,
+}
+
+impl InputText {
+    pub fn new(label: &str) -> Self {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+
+        let mut string = String::new();
+        for _ in 0..255 {
+            string.push('\0');
+        }
+        InputText {
+            label,
+            value: string,
+            buffersize: 255,
+        }
+    }
+
+    pub fn get_text(&self) -> &str {
+        let null_terminator_position = self.value.find('\0').unwrap();
+
+        // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
+        &self.value[..null_terminator_position]
     }
 }
+
+pub struct InputColor {
+    label: String,
+    value: ImGui_Vec4,
+}
+
+impl InputColor {
+    pub fn new(label: &str) -> InputColor {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+
+        let value = ImGui_Vec4 {
+            x: 0.3,
+            y: 0.3,
+            z: 0.3,
+            w: 1.0,
+        };
+        InputColor { value, label }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // pub struct GUI<'a> {
 //     pub windows: Vec<Rc<RefCell<Window<'a>>>>,
@@ -634,10 +862,10 @@ impl Update for Checkbox {
 
 // impl InputText {
 //     pub fn new(label: String, size: i32) -> Rc<RefCell<Self>> {
-//         let mut string = String::new();
-//         for _ in 0..size {
-//             string.push('\0');
-//         }
+        // let mut string = String::new();
+        // for _ in 0..size {
+        //     string.push('\0');
+        // }
 
 //         Rc::new(RefCell::new(InputText {
 //             label,
@@ -766,7 +994,6 @@ impl Update for Checkbox {
 //         }
 //     }
 // }
-
 
 // #[derive(Debug, Clone)]
 // pub struct Text2 {
@@ -937,7 +1164,3 @@ impl Update for Checkbox {
 // pub trait Widget {
 //     fn update(&mut self);
 // }
-
-use std::{sync::{Mutex, Arc}, vec};
-
-use backend::ImGui_Button;
