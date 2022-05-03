@@ -149,12 +149,12 @@ pub enum Widget {
 }
 
 pub struct Window {
-    buttons: Vec<RwLock<Button>>,
-    text: Vec<RwLock<Text>>,
-    checkboxes: Vec<RwLock<Checkbox>>,
-    text_input: Vec<RwLock<InputText>>,
-    input_color: Vec<RwLock<InputColor>>,
-    widgets: Vec<RwLock<Box<dyn Update + Send + Sync>>>
+    buttons: Vec<Arc<RwLock<Button>>>,
+    text: Vec<Arc<RwLock<Text>>>,
+    checkboxes: Vec<Arc<RwLock<Checkbox>>>,
+    text_input: Vec<Arc<RwLock<InputText>>>,
+    input_color: Vec<Arc<RwLock<InputColor>>>,
+    widgets: Vec<Arc<RwLock<dyn Update + Send + Sync>>>,
 }
 
 impl Window {
@@ -170,22 +170,22 @@ impl Window {
     }
 
     pub fn button(mut self, button: Button) -> Self {
-        self.buttons.push(RwLock::new(button));
+        self.buttons.push(Arc::new(RwLock::new(button)));
         self
     }
 
     pub fn checkbox(mut self, checkbox: Checkbox) -> Self {
-        self.checkboxes.push(RwLock::new(checkbox));
+        self.checkboxes.push(Arc::new(RwLock::new(checkbox)));
         self
     }
 
     pub fn text(mut self, text: Text) -> Self {
-        self.text.push(RwLock::new(text));
+        self.text.push(Arc::new(RwLock::new(text)));
         self
     }
 
     pub fn input_text(mut self, text_input: InputText) -> Self {
-        self.text_input.push(RwLock::new(text_input));
+        self.text_input.push(Arc::new(RwLock::new(text_input)));
         self
     }
 
@@ -201,35 +201,42 @@ pub trait Add<T> {
 
 impl Add<Checkbox> for Window {
     fn add(mut self, widget: Checkbox) -> Self {
-        self.checkboxes.push(RwLock::new(widget));
+        self.checkboxes.push(Arc::new(RwLock::new(widget)));
         self
     }
 }
 
 impl Add<InputText> for Window {
     fn add(mut self, widget: InputText) -> Self {
-        self.text_input.push(RwLock::new(widget));
+        self.text_input.push(Arc::new(RwLock::new(widget)));
         self
     }
 }
 
 impl Add<Text> for Window {
     fn add(mut self, widget: Text) -> Self {
-        self.text.push(RwLock::new(widget));
+        self.text.push(Arc::new(RwLock::new(widget)));
         self
     }
 }
 
 impl Add<Button> for Window {
     fn add(mut self, widget: Button) -> Self {
-        self.buttons.push(RwLock::new(widget));
+        self.buttons.push(Arc::new(RwLock::new(widget)));
         self
     }
 }
 
+
+fn to_update<T: Update + 'static + Send + Sync>(test: &Arc<RwLock<T>>) -> Arc<RwLock<dyn Update + 'static + Send + Sync>> {
+    let x = test.clone();
+    x
+}
+
 impl Add<InputColor> for Window {
     fn add(mut self, widget: InputColor) -> Self {
-        self.input_color.push(RwLock::new(widget));
+        let widget = Arc::new(RwLock::new(widget));       
+        self.widgets.push(to_update(&widget));
         self
     }
 }
