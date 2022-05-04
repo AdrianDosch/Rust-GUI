@@ -2,7 +2,7 @@ use lazy_static::__Deref;
 use rust_gui::*;
 
 fn main() {
-    let gui = Gui::new().build();
+    let gui = Gui::new();
     let gui = gui
         .window(
             Window::new()
@@ -17,7 +17,7 @@ fn main() {
                     })
                 )
         );
-    // let gui = gui.build();
+    let gui = gui.build();
 
     let receiver = gui.start();
 
@@ -25,12 +25,12 @@ fn main() {
         //wait until one rendering loop has finished
         receiver.recv().unwrap();
 
-        if gui.blocking_read().get(0, Widget::Button(0)).unwrap() {
+        if gui.get(0, Widget::Button(0)).unwrap() {
             println!("Button 1");
         }
 
-        if gui.blocking_read().get(0, Widget::Checkbox(0)).unwrap() {
-            let x: String = gui.blocking_read().get(0, Widget::InputText(0)).unwrap();
+        if gui.get(0, Widget::Checkbox(0)).unwrap() {
+            let x: String = gui.get(0, Widget::InputText(0)).unwrap();
             println!("{}", x);
         }
     }

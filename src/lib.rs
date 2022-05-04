@@ -61,7 +61,7 @@ impl Gui {
     }
 
     pub fn build(self) -> GuiHandle {
-        Arc::new(RwLock::new(self))
+        Arc::new(self)
     }
 
     pub fn should_close(&self) -> bool {
@@ -73,11 +73,10 @@ impl Gui {
         false
     }
 
-    fn update(&mut self) {
+    fn update(&self) {
         unsafe { start_frame() }
-        for i in 0..self.windows.len() {
-            let win = &self.windows[i];
-            win.update(self);
+        for window in &self.windows {
+            window.update(self);
         }
         let clear_color = ImGui_Vec4 {
             x: 0.3,
@@ -96,18 +95,7 @@ impl Gui {
     }
 }
 
-pub type GuiHandle = Arc<RwLock<Gui>>;
-
-pub trait AddWindow {
-    fn window(self, window: Window) -> Self;
-}
-
-impl AddWindow for GuiHandle {
-    fn window(self, window: Window) -> Self {
-        self.blocking_write().windows.push(window);
-        self
-    }
-}
+pub type GuiHandle = Arc<Gui>;
 
 pub trait Start {
     fn start(&self) -> Receiver<()>;
@@ -121,26 +109,23 @@ impl Start for GuiHandle {
         let handle = thread::spawn(move || {
             unsafe {
                 let window_handle = init_gui("test_label".as_ptr());
-                
-                let gui = cp.blocking_write();                
-                let mut glfw_window = gui.glfw_window.blocking_write();
+                             
+                let mut glfw_window = cp.glfw_window.blocking_write();
                 *glfw_window = Some(window_handle.window);
 
-                let mut io = gui.io.blocking_write();
+                let mut io = cp.io.blocking_write();
                 *io = Some(window_handle.io);
             }
 
-            while !cp.blocking_read().should_close() {
+            while !cp.should_close() {
                 // let start_time = time::Instant::now();
-                let mut block = cp.blocking_write();
-                block.update();
+                cp.update();
                 tx.send(()).unwrap();
                 // let time_delta = time::Instant::now() - start_time;
                 // println!("{:?}", time_delta);
             }
-        });
-        let gui = self.blocking_write();  
-        let mut h = gui.thread_handle.blocking_write();
+        }); 
+        let mut h = self.thread_handle.blocking_write();
         *h = Some(handle);
         rx
     }
