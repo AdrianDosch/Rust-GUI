@@ -1,8 +1,7 @@
-use lazy_static::__Deref;
 use rust_gui::*;
 
 fn main() {
-    let gui = Gui::new();
+    let gui = Gui::new("example");
     let gui = gui
         .window(
             Window::new()
@@ -13,7 +12,7 @@ fn main() {
                 .add(InputColor::new("choose a color"))
                 .add(Button::new("button2")
                     .callback(move |gui: &Gui|{
-                        gui.set(0, Widget::Text(0), String::from("clicked!\0")).unwrap();
+                        gui.set(0, Widget::Text(0), String::from("clicked!")).unwrap();
                     })
                 )
         );

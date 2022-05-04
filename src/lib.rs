@@ -9,6 +9,7 @@ use std::{
 use tokio::sync::RwLock;
 
 pub struct Gui {
+    label: String,
     windows: Vec<Window>,
     glfw_window: RwLock<Option<&'static c_void>>,
     io: RwLock<Option<&'static c_void>>,
@@ -17,8 +18,14 @@ pub struct Gui {
 }
 
 impl Gui {
-    pub fn new() -> Gui {
+    pub fn new(label: &str) -> Gui {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+        
         Gui {
+            label,
             windows: vec![],
             glfw_window: RwLock::new(None),
             io: RwLock::new(None),
@@ -64,7 +71,7 @@ impl Gui {
         Arc::new(self)
     }
 
-    pub fn should_close(&self) -> bool {
+    fn should_close(&self) -> bool {
         unsafe {
             if close_window(self.glfw_window.blocking_read().unwrap()) {
                 return true;
@@ -108,7 +115,7 @@ impl Start for GuiHandle {
         let (tx, rx) = mpsc::channel();
         let handle = thread::spawn(move || {
             unsafe {
-                let window_handle = init_gui("test_label".as_ptr());
+                let window_handle = init_gui(cp.label.as_ptr());
                              
                 let mut glfw_window = cp.glfw_window.blocking_write();
                 *glfw_window = Some(window_handle.window);
@@ -286,6 +293,10 @@ impl AccessWidget<bool> for Window {
 
 impl AccessWidget<String> for Window {
     fn set(&self, widget: Widget, value: String) {
+        let mut value = value;
+        if !value.ends_with("\0"){
+            value.push('\0');
+        };
         match widget {
             Widget::Text(i) => self
                 .text
@@ -551,10 +562,7 @@ pub fn show_demo_window() {
 
 
 
-
-
-
-
+//future implementations:
 
 // impl SliderInt {
 //     pub fn new(label: String) -> Rc<RwLock<Self>> {
