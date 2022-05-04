@@ -156,6 +156,7 @@ pub enum Widget {
 }
 
 pub struct Window {
+    label: String,
     buttons: Vec<Arc<Button>>,
     text: Vec<Arc<Text>>,
     checkboxes: Vec<Arc<Checkbox>>,
@@ -165,8 +166,14 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(label: &str) -> Self {
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with("\0"){
+            label.push('\0');
+        };
+
         Window {
+            label,
             buttons: vec![],
             text: vec![],
             checkboxes: vec![],
@@ -183,7 +190,7 @@ impl Window {
     }
 
     fn update(&self, gui: &Gui) {
-        unsafe { ImGui_Begin("windowlabel\0".as_ptr(), &true, 0) }
+        unsafe { ImGui_Begin(self.label.as_ptr(), &true, 0) }
         for widget in &self.widgets {
             // widget.blocking_write().update();
             let x = widget.update();
@@ -335,15 +342,6 @@ pub trait Update {
     }
 }
 
-// impl Update for Window {
-//     fn update(&mut self) {
-//         unsafe { ImGui_Begin("windowlabel\0".as_ptr(), &true, 0) }
-//         for widget in &self.widgets {
-//             widget.blocking_write().update();
-//         }
-//         unsafe { ImGui_End() }
-//     }
-// }
 
 impl Update for Button {
     fn update(&self) -> bool{

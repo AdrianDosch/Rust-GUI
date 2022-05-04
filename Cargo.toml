@@ -11,10 +11,6 @@ documentation = ""
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derivative = "2.2.0"
-lazy_static = "1.4.0"
-rust_gui_macros = {path = "./rust_gui_macros", version = "0.1.0"}
-paste = "1.0.7"
 tokio = {version = "1.18.0", features = ["sync"]}
 
 [build-dependencies]

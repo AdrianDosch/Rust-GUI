@@ -19,8 +19,8 @@ fn get_size(dir: &str) -> u64 {
 fn main() {
     let gui = Gui::new("size calculator");
     let gui = gui
-        .window(Window::new()
-            .add(Text::new("Describtion"))
+        .window(Window::new("window label")
+            .add(Text::new("This app calculates the size of a directory recursive up to layer three."))
             .add(Button::new("get Size:"))
             .same_line(InputText::new("###1"))
             .add(Text::new("input a Directory..."))
@@ -30,7 +30,7 @@ fn main() {
     let rec = gui.start();
 
     while gui.is_running() {
-        rec.recv().unwrap();
+        rec.recv().unwrap(); //wait until one rendering loop has finished so the input got updated.
 
         if gui.get(0, Widget::Button(0)).unwrap() {
             let text;
