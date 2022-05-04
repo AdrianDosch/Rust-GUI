@@ -4,7 +4,7 @@ use backend::*;
 use std::{
     ffi::c_void,
     thread::{self, JoinHandle},
-    time::{self, Duration}, sync::{Arc, mpsc::{self, Receiver}}, str::FromStr,
+    sync::{Arc, mpsc::{self, Receiver}}, str::FromStr,
 };
 use tokio::sync::RwLock;
 
@@ -20,7 +20,7 @@ pub struct Gui {
 impl Gui {
     pub fn new(label: &str) -> Gui {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
         
@@ -168,7 +168,7 @@ pub struct Window {
 impl Window {
     pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
 
@@ -244,8 +244,7 @@ impl Add<Button> for Window {
 
 
 fn to_update<T: Update + 'static + Send + Sync>(test: &Arc<T>) -> Arc<dyn Update + 'static + Send + Sync> {
-    let x = test.clone();
-    x
+    test.clone() as _
 }
 
 impl Add<InputColor> for Window {
@@ -301,7 +300,7 @@ impl AccessWidget<bool> for Window {
 impl AccessWidget<String> for Window {
     fn set(&self, widget: Widget, value: String) {
         let mut value = value;
-        if !value.ends_with("\0"){
+        if !value.ends_with('\0'){
             value.push('\0');
         };
         match widget {
@@ -310,7 +309,7 @@ impl AccessWidget<String> for Window {
                 .get(i)
                 .expect("there aren't enough text widgets")
                 .set(value),
-            Widget::InputText(i) => todo!(),
+            Widget::InputText(_i) => todo!(),
             _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
@@ -328,8 +327,7 @@ impl AccessWidget<String> for Window {
                 .text_input
                 .get(i)
                 .expect("not enough input text")
-                .get_text()
-                .to_string(),
+                .get_text(),
             _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
@@ -337,7 +335,7 @@ impl AccessWidget<String> for Window {
 
 pub trait Update {
     fn update(&self) -> bool;
-    fn call_callback(&self, gui: &Gui) {
+    fn call_callback(&self, _gui: &Gui) {
 
     }
 }
@@ -426,13 +424,13 @@ pub struct Button {
 impl Button {
     pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
         Button {
             label: Arc::new(RwLock::new(label)),
             value: Arc::new(RwLock::new(false)),
-            callback: Arc::new(RwLock::new(Box::new(|gui: &Gui| {}))),
+            callback: Arc::new(RwLock::new(Box::new(|_gui: &Gui| {}))),
         }
     }
 
@@ -450,7 +448,7 @@ pub struct Text {
 impl Text {
     pub fn new(label: &str, ) -> Self {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
         Text {
@@ -467,7 +465,7 @@ pub struct Checkbox {
 impl Checkbox {
     pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
         Checkbox { label: Arc::new(RwLock::new(label)), value: Arc::new(RwLock::new(false)) }
@@ -483,7 +481,7 @@ pub struct InputText {
 impl InputText {
     pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
 
@@ -514,7 +512,7 @@ pub struct InputColor {
 impl InputColor {
     pub fn new(label: &str) -> InputColor {
         let mut label = String::from_str(label).unwrap();
-        if !label.ends_with("\0"){
+        if !label.ends_with('\0'){
             label.push('\0');
         };
 

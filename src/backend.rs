@@ -32,11 +32,6 @@ extern "C" {
     pub fn ImGui_InputText(label: *const u8, value: *const u8, buffer_size: i32, flags: i32);
 }
 
-#[allow(non_snake_case)]
-pub unsafe fn ImGui_Color(label: *const u8, value: &ImGui_Vec4) {
-    ImGui_ColorEdit3(label, value);
-}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct GUI_handle<'a> {
