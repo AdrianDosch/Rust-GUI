@@ -3,7 +3,6 @@ use rust_gui::*;
 
 fn main() {
     let gui = Gui::new().build();
-    let gui_cp = gui.clone();
     let gui = gui
         .window(
             Window::new()
@@ -13,7 +12,9 @@ fn main() {
                 .same_line(Checkbox::new("print input"))
                 .add(InputColor::new("choose a color"))
                 .add(Button::new("button2")
-                    .callback(move ||{gui_cp.blocking_write().set(0, Widget::Text(0), String::from("clicked!")).unwrap()}) //deadlock because of blocking read/write
+                    .callback(move |gui: &Gui|{
+                        gui.set(0, Widget::Text(0), String::from("clicked!\0")).unwrap();
+                    })
                 )
         );
     // let gui = gui.build();
@@ -27,12 +28,6 @@ fn main() {
         if gui.blocking_read().get(0, Widget::Button(0)).unwrap() {
             println!("Button 1");
         }
-
-        // if gui.get(0, Widget::Button(1)).unwrap() {
-        //     println!("Button 2");
-        //     gui.set(0, Widget::Text(0), String::from("nice text"))
-        //         .unwrap();
-        // }
 
         if gui.blocking_read().get(0, Widget::Checkbox(0)).unwrap() {
             let x: String = gui.blocking_read().get(0, Widget::InputText(0)).unwrap();
