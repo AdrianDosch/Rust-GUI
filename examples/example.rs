@@ -5,19 +5,24 @@ fn main() {
     let gui = gui
         .window(
             Window::new("drag me!")
-                .add(Button::new("Button1")
-                    .callback(move |gui: &Gui|{
-                        gui.set(0, Widget::Text(0), String::from("clicked!")).unwrap();
-                    })    
-                )
+                .add(Button::new("Button1").callback(move |gui: &Gui| {
+                    gui.set(0, Widget::Text(0), String::from("clicked!"))
+                        .unwrap();
+                }))
                 .same_line(Text::new("click the button on the left\nsecond line!"))
                 .add(InputText::new("###1"))
                 .same_line(Checkbox::new("print input"))
                 .add(InputColor::new("choose a color"))
-                .add(Button::new("button2")
-                )
+                .add(Button::new("button2"))
+                .add(SliderInt::new("slider").callback(|_: &Gui| println!("changed slider")))
+                .add(SliderFloat::new("float slider")),
         )
-        .window(Window::new("second window"));
+        .window(Window::new("second window")
+                    .add(Checkbox::new("show demo window")
+                        .callback(|gui: &Gui|{
+                            let status = *gui.show_demo_window.blocking_read();
+                            *gui.show_demo_window.blocking_write() = !status;
+                        })));
     let gui = gui.build();
 
     let receiver = gui.start();
