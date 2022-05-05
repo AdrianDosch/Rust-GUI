@@ -112,7 +112,7 @@ pub trait Start {
 impl Start for GuiHandle {
     fn start(&self) -> Receiver<()>{
         let cp = self.clone();
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::sync_channel(1);
         let handle = thread::spawn(move || {
             unsafe {
                 let window_handle = init_gui(cp.label.as_ptr());
@@ -127,7 +127,15 @@ impl Start for GuiHandle {
             while !cp.should_close() {
                 // let start_time = time::Instant::now();
                 cp.update();
-                tx.send(()).unwrap();
+                match tx.try_send(()) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        match e {
+                            mpsc::TrySendError::Full(_) => {},
+                            mpsc::TrySendError::Disconnected(_) => panic!("sending error"),
+                        }
+                    }
+                }
                 // let time_delta = time::Instant::now() - start_time;
                 // println!("{:?}", time_delta);
             }
