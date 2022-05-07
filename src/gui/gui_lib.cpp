@@ -20,6 +20,11 @@
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
+static void glfw_error_callback(int error, const char* description)
+{
+    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
+
 //acts as replacement of the ImVec4 struct
 extern "C" struct ImGui_Vec4 {
     float x;
@@ -32,11 +37,6 @@ extern "C" struct GUI {
     GLFWwindow* window;
     ImGuiIO* io;
 };
-
-static void glfw_error_callback(int error, const char* description)
-{
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
 
 extern "C" GUI init_gui(const char* window_label)
 {
@@ -72,10 +72,8 @@ extern "C" GUI init_gui(const char* window_label)
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(1280, 720, window_label, NULL, NULL);
     if (window == NULL)
-        std::cout << "window eror!!!\n";
+        std::cout << "window error!!!\n";
         //return 1;
-    // glfwHideWindow(window);
-    // glfwIconifyWindow(window);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -226,4 +224,12 @@ extern "C" void show_demo_window() {
 
 extern "C" void ImGui_InputText(const char* label, char * buffer, int buffersize, int flags) {
     ImGui::InputText(label, buffer, buffersize, flags);
+}
+
+extern "C" bool ImGUI_TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) {
+    return ImGui::TreeNodeEx(label, flags);
+}
+
+extern "C" void ImGui__TreePop() {
+    ImGui::TreePop();
 }

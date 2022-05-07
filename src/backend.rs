@@ -30,6 +30,8 @@ extern "C" {
     pub fn ImGui_SliderInt(label: *const u8, value: &i32, min_val: i32, max_val: i32);
     pub fn ImGui_SliderFloat(label: *const u8, value: &f32, min_val: f32, max_val: f32);
     pub fn ImGui_InputText(label: *const u8, value: *const u8, buffer_size: i32, flags: i32);
+    pub fn ImGUI_TreeNodeEx(label: *const u8, flags: i32) -> bool;
+    pub fn ImGui__TreePop();
 }
 
 #[repr(C)]

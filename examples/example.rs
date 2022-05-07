@@ -15,7 +15,14 @@ fn main() {
                 .add(InputColor::new("choose a color"))
                 .add(Button::new("button2"))
                 .add(SliderInt::new("slider").callback(|_: &Gui| println!("changed slider")))
-                .add(SliderFloat::new("float slider")),
+                .add(SliderFloat::new("float slider"))
+                .add(TreeNode::new("tree")
+                    .add(Text::new("toller text"))
+                    .add(Button::new("just a button")
+                        .callback(|_: &Gui|{
+                            println!{"pressed!"}
+                        }))
+                ),
         )
         .window(Window::new("second window")
                     .add(Checkbox::new("show demo window")

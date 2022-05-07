@@ -13,6 +13,5 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
-syn = "1.0.91"
 quote = "1.0.18"
 proc-macro2 = "1.0.37"

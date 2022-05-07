@@ -26,7 +26,6 @@ pub struct Gui {
     windows: Vec<Window>,
     glfw_window: RwLock<Option<&'static c_void>>,
     io: RwLock<Option<&'static c_void>>,
-    should_close: RwLock<bool>,
     thread_handle: RwLock<Option<JoinHandle<()>>>,
     pub show_demo_window: RwLock<bool>,
 }
@@ -43,7 +42,6 @@ impl Gui {
             windows: vec![],
             glfw_window: RwLock::new(None),
             io: RwLock::new(None),
-            should_close: RwLock::new(false),
             thread_handle: RwLock::new(None),
             show_demo_window: RwLock::new(false),
         }
@@ -76,7 +74,7 @@ impl Gui {
         Window: AccessWidget<T>,
     {
         if let Some(window) = self.windows.get(window_idx) {
-            Ok(AccessWidget::get(window, widget))
+            Ok(window.get(widget))
         } else {
             Err(WidgetNotFoundError)
         }
@@ -93,10 +91,6 @@ impl Gui {
             }
         }
         false
-    }
-
-    fn terminate(&self) {
-        unsafe {}
     }
 
     fn update(&self) {
@@ -204,6 +198,7 @@ pub struct Window {
     input_color: Vec<Arc<InputColor>>,
     slider_int: Vec<Arc<SliderInt>>,
     slider_float: Vec<Arc<SliderFloat>>,
+    tree_nodes: Vec<Arc<TreeNode>>,
     widgets: Vec<Arc<dyn Update + Send + Sync>>,
 }
 
@@ -223,6 +218,7 @@ impl Window {
             input_color: vec![],
             slider_int: vec![],
             slider_float: vec![],
+            tree_nodes: vec![],
             widgets: vec![],
         }
     }
@@ -238,20 +234,13 @@ impl Window {
     fn update(&self, gui: &Gui) {
         unsafe { ImGui_Begin(self.label.as_ptr(), &true, 0) }
         for widget in &self.widgets {
-            // widget.blocking_write().update();
-            let x = widget.update();
+            let x = widget.update(gui);
             if x {
                 widget.call_callback(gui);
             }
         }
         unsafe { ImGui_End() }
     }
-}
-
-fn to_update<T: Update + 'static + Send + Sync>(
-    test: &Arc<T>,
-) -> Arc<dyn Update + 'static + Send + Sync> {
-    test.clone() as _
 }
 
 pub trait AccessWidget<T> {
@@ -328,7 +317,7 @@ impl AccessWidget<String> for Window {
 }
 
 pub trait Update {
-    fn update(&self) -> bool;
+    fn update(&self, gui: &Gui) -> bool;
     fn call_callback(&self, _gui: &Gui) {}
 }
 
@@ -340,14 +329,22 @@ pub trait Set<T> {
     fn set(&self, value: T);
 }
 
+fn to_update<T: Update + 'static + Send + Sync>(
+    test: &Arc<T>,
+) -> Arc<dyn Update + 'static + Send + Sync> {
+    test.clone() as _
+}
+
 fn show_demo_window() {
     unsafe { backend::show_demo_window() }
 }
 
+type Callback = Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>;
+
 pub struct Button {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<bool>>,
-    callback: Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>,
+    callback: Callback,
 }
 
 impl Button {
@@ -369,15 +366,20 @@ impl Button {
     }
 }
 
-impl_Update!(
-    Button,
-    ImGui_Button(
-        self.label.blocking_write().as_ptr(),
-        &self.value.blocking_write()
-    ),
-    callback,
-    value
-);
+impl Update for Button {
+    fn update(&self, _: &Gui) -> bool {
+        unsafe {ImGui_Button(
+            self.label.blocking_write().as_ptr(),
+            &self.value.blocking_write())
+        }
+        *self.value.blocking_read()
+    }
+
+    fn call_callback(&self, gui: &Gui) {
+        (self.callback.blocking_read())(gui);
+    }
+}
+
 impl_Add!(Button, buttons);
 impl_Set!(Button, bool, value);
 
@@ -404,7 +406,7 @@ impl_Set!(Text, String, value);
 pub struct Checkbox {
     label: Arc<RwLock<String>>,
     pub value: Arc<RwLock<bool>>,
-    callback: Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>,
+    callback: Callback,
 }
 
 impl Checkbox {
@@ -438,7 +440,7 @@ impl_Set!(Checkbox, bool, value);
 pub struct InputText {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<String>>,
-    buffersize: Arc<RwLock<i32>>,
+    buffer_size: Arc<RwLock<i32>>,
 }
 
 impl InputText {
@@ -455,7 +457,7 @@ impl InputText {
         InputText {
             label: Arc::new(RwLock::new(label)),
             value: Arc::new(RwLock::new(string)),
-            buffersize: Arc::new(RwLock::new(255)),
+            buffer_size: Arc::new(RwLock::new(255)),
         }
     }
 
@@ -472,7 +474,7 @@ impl_Update!(
     ImGui_InputText(
         self.label.blocking_write().as_ptr(),
         self.value.blocking_write().as_ptr(),
-        *self.buffersize.blocking_write(),
+        *self.buffer_size.blocking_write(),
         0
     )
 );
@@ -558,7 +560,7 @@ pub struct SliderInt {
     value: Arc<RwLock<i32>>,
     min: Arc<RwLock<i32>>,
     max: Arc<RwLock<i32>>,
-    callback: Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>,
+    callback: Callback,
 }
 
 impl SliderInt {
@@ -601,7 +603,7 @@ pub struct SliderFloat {
     value: Arc<RwLock<f32>>,
     min: Arc<RwLock<f32>>,
     max: Arc<RwLock<f32>>,
-    callback: Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>,
+    callback: Callback,
 }
 
 impl SliderFloat {
@@ -636,3 +638,65 @@ impl_Update!(
 );
 impl_Add!(SliderFloat, slider_float);
 impl_Set!(SliderFloat, f32, value);
+
+pub struct TreeNode {
+    flags: Arc<RwLock<i32>>,
+    label: Arc<RwLock<String>>,
+    buttons: Vec<Arc<Button>>,
+    text: Vec<Arc<Text>>,
+    checkboxes: Vec<Arc<Checkbox>>,
+    text_input: Vec<Arc<InputText>>,
+    input_color: Vec<Arc<InputColor>>,
+    slider_int: Vec<Arc<SliderInt>>,
+    slider_float: Vec<Arc<SliderFloat>>,
+    tree_nodes: Vec<Arc<TreeNode>>,
+    widgets: Vec<Arc<dyn Update + Send + Sync>>,
+}
+
+impl TreeNode {
+    pub fn new(label: &str) -> Self{
+        let mut label = String::from_str(label).unwrap();
+        if !label.ends_with('\0') {
+            label.push('\0');
+        };
+
+        TreeNode {
+            flags: Arc::new(RwLock::new(0)),
+            label: Arc::new(RwLock::new(label)),
+            buttons: vec![],
+            text: vec![],
+            checkboxes: vec![],
+            text_input: vec![],
+            input_color: vec![],
+            slider_int: vec![],
+            slider_float: vec![],
+            tree_nodes: vec![],
+            widgets: vec![],
+        }
+    }
+
+    pub fn same_line<T>(mut self, widget: T) -> Self
+    where
+        TreeNode: Add<T>,
+    {
+        self.widgets.push(Arc::new(SameLine::new(None, None)));
+        self.add(widget)
+    }
+}
+
+impl Update for TreeNode {
+    fn update(&self, gui: &Gui) -> bool {
+       if unsafe { ImGUI_TreeNodeEx(self.label.blocking_read().as_ptr(), *self.flags.blocking_read()) }{
+           for widget in &self.widgets {
+                let call_callback = widget.update(gui);
+                if call_callback {
+                    widget.call_callback(gui);
+                }
+           }
+           unsafe { ImGui__TreePop() }
+       }
+        false
+    }
+}
+
+impl_Add!(TreeNode, tree_nodes);
