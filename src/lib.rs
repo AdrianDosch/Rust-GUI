@@ -187,6 +187,183 @@ pub enum Widget {
     InputColor(usize),
     SliderInt(usize),
     SliderFloat(usize),
+    TreeNode(usize),
+}
+
+enum Item {
+    Button(Button),
+    Text(Text),
+    Checkbox(Checkbox),
+    InputText(InputText),
+    InputColor(InputColor),
+    SliderInt(SliderInt),
+    SliderFloat(SliderFloat),
+    TreeNode(TreeNode)
+}
+
+struct Container {
+    items: Vec<Item>
+}
+
+impl Contain for Container {
+    fn get_items(&self) -> &Vec<Item>{
+        &self.items
+    }
+}
+
+trait Contain {
+    fn get_items(&self) -> &Vec<Item>;
+}
+
+trait Setter<T> {
+    fn set(&self, value: T);
+}
+
+trait Getter<T> {
+    fn get(&self) -> T;
+}
+
+impl Setter<bool> for Item {
+    fn set(&self, value: bool) {
+        match self {
+            Item::Button(b) => *b.value.blocking_write() = value,
+            Item::Checkbox(c) => *c.value.blocking_write() = value,
+            _ => unimplemented!()
+        }
+    }
+}
+
+impl Setter<String> for Item {
+    fn set(&self, value: String) {
+        match self {
+            Item::Text(_) => todo!(),
+            Item::InputText(_) => todo!(),
+            _ => unimplemented!()
+        }
+    }
+}
+
+impl Getter<bool> for Item {
+    fn get(&self) -> bool {
+        match self {
+            Item::Button(b) => *b.value.blocking_read(),
+            Item::Checkbox(c) => *c.value.blocking_read(),
+            _ => unimplemented!()
+        }
+    }
+}
+
+impl Getter<String> for Item {
+    fn get(&self) -> String {
+        match self {
+            Item::Text(t) => t.value.blocking_read().clone(),
+            Item::InputText(i) => i.value.blocking_read().clone(),
+            _ => unimplemented!()
+        }
+    }
+}
+
+
+trait WidgetHdl {
+    fn set<T>(&self, widget: Widget, value: T)
+    where Item: Setter<T>;
+    fn get<T>(&self, widget: Widget) -> T
+    where Item: Getter<T>;
+}
+
+fn is_same(item: &Item, widget: &Widget) -> bool {
+    match item {
+        Item::Button(_) => match widget {Widget::Button(_) => true, _ => false},
+        Item::Checkbox(_) => match widget {Widget::Checkbox(_) => true, _ => false},
+        Item::Text(_) =>  match widget {Widget::InputText(_) => true, _ => false},
+        Item::InputText(_) =>  match widget {Widget::Checkbox(_) => true, _ => false},
+        Item::InputColor(_) =>  match widget {Widget::InputColor(_) => true, _ => false},
+        Item::SliderInt(_) =>  match widget {Widget::SliderInt(_) => true, _ => false},
+        Item::SliderFloat(_) =>  match widget {Widget::SliderFloat(_) => true, _ => false},
+        Item::TreeNode(_) =>  match widget {Widget::TreeNode(_) => true, _ => false},
+    }
+}
+
+trait Index {
+    fn idx(&self) -> usize;
+}
+
+impl Index for Widget {
+    fn idx(&self) -> usize{
+        match self {
+            Widget::Button(i) |
+            Widget::Checkbox(i) |
+            Widget::InputColor(i) |
+            Widget::InputText(i) |
+            Widget::SliderFloat(i) |
+            Widget::SliderInt(i) |
+            Widget::Text(i) | 
+            Widget::TreeNode(i) => *i
+        }
+    }
+}
+
+impl WidgetHdl for dyn Contain {
+    fn set<T>(&self, widget: Widget, value: T) 
+    where Item: Setter<T> {
+        let count = widget.idx();
+        self.get_items().iter()
+        .filter(|x| {
+            is_same(x, &widget)
+        })
+        .nth(count)
+        .and_then(|x| {
+            x.set(value);
+            Some(())
+        });     
+    }
+
+    fn get<T>(&self, widget: Widget) -> T 
+    where Item: Getter<T> {
+        let count = widget.idx();
+        let item = self.get_items().iter()
+        .filter(|x| {
+            is_same(x, &widget)
+        })
+        .nth(count)
+        .and_then(|x|{
+            Some(x.get())
+        });
+
+        if let Some(item) = item {
+            return item;
+        } else {
+            panic!("not enough widgets");
+        }
+    }
+}
+
+impl AccessWidget<bool> for Container {
+    fn set(&self, widget: Widget, value: bool) {
+        let count = match widget {
+            Widget::Button(i) | Widget::Checkbox(i) => i,
+            _ => unimplemented!()
+        };
+        self.items.iter().filter(|x| {
+            match x {
+                Item::Button(_) => match widget {Widget::Button(_) => true, _ => false},
+                Item::Checkbox(_) => match widget {Widget::Checkbox(_) => true, _ => false},
+                _ => unimplemented!()
+            }
+        })
+        .nth(count)
+        .and_then(|x| {
+            match x {
+                Item::Button(b) => Some(*b.value.blocking_write() = value),
+                Item::Checkbox(c) => Some(*c.value.blocking_write() = value),
+                _ => None
+            }
+        });
+    }
+
+    fn get(&self, widget: Widget) -> bool {
+        todo!()
+    }
 }
 
 pub struct Window {
@@ -292,7 +469,24 @@ impl AccessWidget<String> for Window {
                 .get(i)
                 .expect("there aren't enough text widgets")
                 .set(value),
-            Widget::InputText(_i) => todo!(),
+            Widget::InputText(i) => {
+                // if *self
+                //     .text_input
+                //     .get(i)
+                //     .expect("tere aren't enough text inputs")
+                //     .buffer_size
+                //     .blocking_read()
+                //     <
+                //     value.capacity() {
+                //         panic!("the string input is to large");
+                //     }
+                *self
+                .text_input
+                .get(i)
+                .expect("there aren't enough text inputs")
+                .value
+                .blocking_write() = value;
+            }
             _ => unreachable!("set widget: {:?} not implemented", widget),
         }
     }
@@ -698,5 +892,11 @@ impl Update for TreeNode {
         false
     }
 }
+
+// impl Contain for TreeNode {
+//     fn get_items(&self) -> &Vec<Item> {
+        
+//     }
+// }
 
 impl_Add!(TreeNode, tree_nodes);
