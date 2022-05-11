@@ -15,15 +15,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-macro_rules! callback {
-    ($name: ident) => {
-        pub fn callback<T: 'static + Send + Sync + Fn(&Gui)>(mut self, callback: T) -> Self {
-            self.$name = Arc::new(RwLock::new(Box::new(callback)));
-            self
-        }
-    };
-}
-
 pub struct Gui {
     label: String,
     windows2: Vec<Window>,
