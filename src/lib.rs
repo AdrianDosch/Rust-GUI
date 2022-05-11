@@ -158,7 +158,12 @@ impl Start for GuiHandle {
 pub trait Update: Send + Sync {
     fn update(&self, gui: &Gui) -> bool;
     fn call_callback(&self, _gui: &Gui) {}
-    fn set_callback<T: 'static + Send + Sync + Fn(&Gui)>(self, _callback: T) -> Self where Self: Sized {self}
+    fn set_callback<T: 'static + Send + Sync + Fn(&Gui)>(self, _callback: T) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -201,15 +206,13 @@ pub trait Container2 {
         }
     }
 
-    fn get_widget<T: 'static + Clone>(&self, widget_idx: usize) -> T{
-        let widget = self.get_items()
-        .iter()
-        .filter_map(|x|{
-            x.as_any()
-            .downcast_ref::<T>()
-        })
-        .nth(widget_idx);
-        
+    fn get_widget<T: 'static + Clone>(&self, widget_idx: usize) -> T {
+        let widget = self
+            .get_items()
+            .iter()
+            .filter_map(|x| x.as_any().downcast_ref::<T>())
+            .nth(widget_idx);
+
         if let Some(widget) = widget {
             widget.clone()
         } else {
@@ -355,7 +358,10 @@ impl Text {
 }
 
 impl Set<String> for Text {
-    fn set(&self, value: String) {
+    fn set(&self, mut value: String) {
+        if !value.ends_with('\0') {
+            value.push('\0');
+        }
         *self.value.blocking_write() = value;
     }
 }

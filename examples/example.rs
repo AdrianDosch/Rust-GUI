@@ -2,61 +2,44 @@ use rust_gui::*;
 
 fn main() {
     let gui = Gui::new("example");
-    // let gui = gui
-    //     .window(
-    //         Window::new("drag me!")
-    //             .add(Button::new("Button1").callback(move |gui: &Gui| {
-    //                 gui.set(0, Widget::Text(0), String::from("clicked!"))
-    //                     .unwrap();
-    //             }))
-    //             .same_line(Text::new("click the button on the left\nsecond line!"))
-    //             .add(InputText::new("###1"))
-    //             .same_line(Checkbox::new("print input"))
-    //             .add(InputColor::new("choose a color"))
-    //             .add(Button::new("button2"))
-    //             .add(SliderInt::new("slider").callback(|_: &Gui| println!("changed slider")))
-    //             .add(SliderFloat::new("float slider"))
-    //             .add(TreeNode::new("tree")
-    //                 .add(Text::new("toller text"))
-    //                 .add(Button::new("just a button")
-    //                     .callback(|_: &Gui|{
-    //                         println!{"pressed!"}
-    //                     }))
-    //             ),
-    //     )
-    //     .window(Window::new("second window")
-    //                 .add(Checkbox::new("show demo window")
-    //                     .callback(|gui: &Gui|{
-    //                         let status = *gui.show_demo_window.blocking_read();
-    //                         *gui.show_demo_window.blocking_write() = !status;
-    //                     })));
 
     let gui = gui
         .window(
             Window::new("window label")
                 .add(Button::new("button label").set_callback(|_: &Gui| println!("pressed!")))
-                .add(
-                    TreeNode::new("node").add(
-                        Button::new("button").set_callback(|_: &Gui| println!("button in treenode")),
-                    ),
-                ),
+                .same_line(Button::new("B"))
+                .add(TreeNode::new("collapsable stuff")
+                    .add(Button::new("button").set_callback(|_: &Gui| println!("button in tree node")))
+                    .add(Text::new("just some text"))
+                    .same_line(Checkbox::new("wow a checkbox"))
+                )
+                .add(SliderInt::new("i32"))
+                .add(SliderFloat::new("f32"))
+                .add(InputColor::new("choose a color"))
+                .add(InputText::new("write some Text!"))
         )
-        .window(Window::new("win 2").add(Text::new("just some text")));
+        .window(
+            Window::new("drag me!").add(Checkbox::new("show demo window").set_callback(|gui: &Gui| {
+                let state = *gui.show_demo_window.blocking_read();
+                *gui.show_demo_window.blocking_write() = !state;
+            }))
+            .add(Text::new("just some text")),
+        );
 
-    let gui = gui.build();
+    let gui = gui.build(); //get a handle to the gui which can be shared between different threads
 
-    let receiver = gui.start();
+    let receiver = gui.start(); //start the rendering loop of the gui in its own thread
 
     while gui.is_running() {
         receiver.recv().unwrap(); //wait until one rendering loop has finished so the input got updated.
 
-        if gui.get::<Button, bool>(0, 0) {
-            gui.set::<Text, String>(1, 0, String::from("new"));
+        if gui.get::<Button, bool>(0, 0) { 
+            gui.set::<Text, String>(1, 0, String::from("new text\n"));
         }
 
         let node = gui.get_widget::<TreeNode>(0, 0);
         if node.get_val::<Button, bool>(0) {
-            println!("yay")
+            println!("nice :)")
         }
     }
 }
