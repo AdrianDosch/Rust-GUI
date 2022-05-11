@@ -34,18 +34,17 @@ fn main() {
     while gui.is_running() {
         rec.recv().unwrap(); //wait until one rendering loop has finished so the input got updated.
 
-        if gui.get(0, Widget::Button(0)).unwrap() {
+        if gui.get::<Button, bool>(0, 0) {
             let text;
-            let input: String = gui.get(0, Widget::InputText(0)).unwrap();
+            let input: String = gui.get::<InputText, String>(0, 0);
             if Path::new(&input).exists() {
-                gui.set(0, Widget::Text(1), String::from("calculating..."))
-                    .unwrap();
+                gui.set::<Text, String>(0, 1, String::from("calculating..."));
                 let byte_size: f32 = get_size(input.as_str()) as f32 / (1024.0 * 1024.0);
                 text = format!("the directory is {} MB large.", byte_size);
             } else {
                 text = String::from("directory not found");
             }
-            gui.set(0, Widget::Text(1), text).unwrap();
+            gui.set::<Text, String>(0, 1, text);
         }
     }
 }

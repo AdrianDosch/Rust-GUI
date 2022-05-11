@@ -1,7 +1,10 @@
 mod backend;
+use rust_gui_macros::*;
 
 use backend::*;
+use core::panic;
 use std::{
+    any::Any,
     ffi::c_void,
     str::FromStr,
     sync::{
@@ -23,7 +26,7 @@ macro_rules! callback {
 
 pub struct Gui {
     label: String,
-    windows: Vec<Window>,
+    windows2: Vec<Window>,
     glfw_window: RwLock<Option<&'static c_void>>,
     io: RwLock<Option<&'static c_void>>,
     thread_handle: RwLock<Option<JoinHandle<()>>>,
@@ -39,7 +42,7 @@ impl Gui {
 
         Gui {
             label,
-            windows: vec![],
+            windows2: vec![],
             glfw_window: RwLock::new(None),
             io: RwLock::new(None),
             thread_handle: RwLock::new(None),
@@ -48,35 +51,31 @@ impl Gui {
     }
 
     pub fn window(mut self, window: Window) -> Self {
-        self.windows.push(window);
+        self.windows2.push(window);
         self
     }
 
-    pub fn set<T>(
-        &self,
-        window_idx: usize,
-        widget: Widget,
-        value: T,
-    ) -> Result<(), WidgetNotFoundError>
-    where
-        Window: AccessWidget<T>,
-    {
-        if let Some(window) = self.windows.get(window_idx) {
-            AccessWidget::set(window, widget, value);
-            Ok(())
+    pub fn set<T: Set<U> + 'static, U>(&self, window_idx: usize, widget_idx: usize, value: U) {
+        if let Some(window) = self.windows2.get(window_idx) {
+            window.set_val::<T, U>(widget_idx, value);
         } else {
-            Err(WidgetNotFoundError)
+            panic!("not enough widgets");
         }
     }
 
-    pub fn get<T>(&self, window_idx: usize, widget: Widget) -> Result<T, WidgetNotFoundError>
-    where
-        Window: AccessWidget<T>,
-    {
-        if let Some(window) = self.windows.get(window_idx) {
-            Ok(window.get(widget))
+    pub fn get<T: Get<U> + 'static, U>(&self, window_idx: usize, widget_idx: usize) -> U {
+        if let Some(window) = self.windows2.get(window_idx) {
+            window.get_val::<T, U>(widget_idx)
         } else {
-            Err(WidgetNotFoundError)
+            panic!("not enough widgets");
+        }
+    }
+
+    pub fn get_widget<T: 'static + Clone>(&self, window_idx: usize, widget_idx: usize) -> T {
+        if let Some(window) = self.windows2.get(window_idx) {
+            window.get_widget(widget_idx)
+        } else {
+            panic!("not enough widgets");
         }
     }
 
@@ -98,7 +97,7 @@ impl Gui {
         if *self.show_demo_window.blocking_read() {
             show_demo_window();
         }
-        for window in &self.windows {
+        for window in &self.windows2 {
             window.update(self);
         }
         let clear_color = ImGui_Vec4 {
@@ -117,16 +116,6 @@ impl Gui {
         }
     }
 }
-
-// impl Drop for Gui {
-//     fn drop(&mut self) {
-//         unsafe {
-//             if let Some(window_handle) = *self.glfw_window.blocking_write(){
-//                 destroy_gui(&window_handle);
-//             }
-//         }
-//     }
-// }
 
 pub type GuiHandle = Arc<Gui>;
 
@@ -175,208 +164,92 @@ impl Start for GuiHandle {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct WidgetNotFoundError;
-
-#[derive(Debug)]
-pub enum Widget {
-    Button(usize),
-    Text(usize),
-    Checkbox(usize),
-    InputText(usize),
-    InputColor(usize),
-    SliderInt(usize),
-    SliderFloat(usize),
-    TreeNode(usize),
+pub trait Update: Send + Sync {
+    fn update(&self, gui: &Gui) -> bool;
+    fn call_callback(&self, _gui: &Gui) {}
+    fn set_callback<T: 'static + Send + Sync + Fn(&Gui)>(self, _callback: T) -> Self where Self: Sized {self}
+    fn as_any(&self) -> &dyn Any;
 }
 
-enum Item {
-    Button(Button),
-    Text(Text),
-    Checkbox(Checkbox),
-    InputText(InputText),
-    InputColor(InputColor),
-    SliderInt(SliderInt),
-    SliderFloat(SliderFloat),
-    TreeNode(TreeNode)
-}
-
-struct Container {
-    items: Vec<Item>
-}
-
-impl Contain for Container {
-    fn get_items(&self) -> &Vec<Item>{
-        &self.items
-    }
-}
-
-trait Contain {
-    fn get_items(&self) -> &Vec<Item>;
-}
-
-trait Setter<T> {
-    fn set(&self, value: T);
-}
-
-trait Getter<T> {
+pub trait Get<T> {
     fn get(&self) -> T;
 }
 
-impl Setter<bool> for Item {
-    fn set(&self, value: bool) {
-        match self {
-            Item::Button(b) => *b.value.blocking_write() = value,
-            Item::Checkbox(c) => *c.value.blocking_write() = value,
-            _ => unimplemented!()
+pub trait Set<T> {
+    fn set(&self, value: T);
+}
+
+pub trait Container2 {
+    fn get_items(&self) -> &Vec<Arc<dyn Update>>;
+    fn get_mut_items(&mut self) -> &mut Vec<Arc<dyn Update>>;
+    fn get_val<T: 'static + Get<U>, U>(&self, idx: usize) -> U {
+        let val = self
+            .get_items()
+            .iter()
+            .filter_map(|x| x.as_any().downcast_ref::<T>())
+            .nth(idx);
+
+        if let Some(val) = val {
+            val.get()
+        } else {
+            panic!("not found")
         }
     }
-}
 
-impl Setter<String> for Item {
-    fn set(&self, value: String) {
-        match self {
-            Item::Text(_) => todo!(),
-            Item::InputText(_) => todo!(),
-            _ => unimplemented!()
+    fn set_val<T: 'static + Set<U>, U>(&self, idx: usize, value: U) {
+        let val = self
+            .get_items()
+            .iter()
+            .filter_map(|x| x.as_any().downcast_ref::<T>())
+            .nth(idx);
+
+        if let Some(val) = val {
+            val.set(value);
+        } else {
+            panic!("not found");
         }
     }
-}
 
-impl Getter<bool> for Item {
-    fn get(&self) -> bool {
-        match self {
-            Item::Button(b) => *b.value.blocking_read(),
-            Item::Checkbox(c) => *c.value.blocking_read(),
-            _ => unimplemented!()
-        }
-    }
-}
-
-impl Getter<String> for Item {
-    fn get(&self) -> String {
-        match self {
-            Item::Text(t) => t.value.blocking_read().clone(),
-            Item::InputText(i) => i.value.blocking_read().clone(),
-            _ => unimplemented!()
-        }
-    }
-}
-
-
-trait WidgetHdl {
-    fn set<T>(&self, widget: Widget, value: T)
-    where Item: Setter<T>;
-    fn get<T>(&self, widget: Widget) -> T
-    where Item: Getter<T>;
-}
-
-fn is_same(item: &Item, widget: &Widget) -> bool {
-    match item {
-        Item::Button(_) => match widget {Widget::Button(_) => true, _ => false},
-        Item::Checkbox(_) => match widget {Widget::Checkbox(_) => true, _ => false},
-        Item::Text(_) =>  match widget {Widget::InputText(_) => true, _ => false},
-        Item::InputText(_) =>  match widget {Widget::Checkbox(_) => true, _ => false},
-        Item::InputColor(_) =>  match widget {Widget::InputColor(_) => true, _ => false},
-        Item::SliderInt(_) =>  match widget {Widget::SliderInt(_) => true, _ => false},
-        Item::SliderFloat(_) =>  match widget {Widget::SliderFloat(_) => true, _ => false},
-        Item::TreeNode(_) =>  match widget {Widget::TreeNode(_) => true, _ => false},
-    }
-}
-
-trait Index {
-    fn idx(&self) -> usize;
-}
-
-impl Index for Widget {
-    fn idx(&self) -> usize{
-        match self {
-            Widget::Button(i) |
-            Widget::Checkbox(i) |
-            Widget::InputColor(i) |
-            Widget::InputText(i) |
-            Widget::SliderFloat(i) |
-            Widget::SliderInt(i) |
-            Widget::Text(i) | 
-            Widget::TreeNode(i) => *i
-        }
-    }
-}
-
-impl WidgetHdl for dyn Contain {
-    fn set<T>(&self, widget: Widget, value: T) 
-    where Item: Setter<T> {
-        let count = widget.idx();
-        self.get_items().iter()
-        .filter(|x| {
-            is_same(x, &widget)
+    fn get_widget<T: 'static + Clone>(&self, widget_idx: usize) -> T{
+        let widget = self.get_items()
+        .iter()
+        .filter_map(|x|{
+            x.as_any()
+            .downcast_ref::<T>()
         })
-        .nth(count)
-        .and_then(|x| {
-            x.set(value);
-            Some(())
-        });     
-    }
-
-    fn get<T>(&self, widget: Widget) -> T 
-    where Item: Getter<T> {
-        let count = widget.idx();
-        let item = self.get_items().iter()
-        .filter(|x| {
-            is_same(x, &widget)
-        })
-        .nth(count)
-        .and_then(|x|{
-            Some(x.get())
-        });
-
-        if let Some(item) = item {
-            return item;
+        .nth(widget_idx);
+        
+        if let Some(widget) = widget {
+            widget.clone()
         } else {
             panic!("not enough widgets");
         }
     }
-}
 
-impl AccessWidget<bool> for Container {
-    fn set(&self, widget: Widget, value: bool) {
-        let count = match widget {
-            Widget::Button(i) | Widget::Checkbox(i) => i,
-            _ => unimplemented!()
-        };
-        self.items.iter().filter(|x| {
-            match x {
-                Item::Button(_) => match widget {Widget::Button(_) => true, _ => false},
-                Item::Checkbox(_) => match widget {Widget::Checkbox(_) => true, _ => false},
-                _ => unimplemented!()
-            }
-        })
-        .nth(count)
-        .and_then(|x| {
-            match x {
-                Item::Button(b) => Some(*b.value.blocking_write() = value),
-                Item::Checkbox(c) => Some(*c.value.blocking_write() = value),
-                _ => None
-            }
-        });
+    fn add<T: Update + 'static>(mut self, widget: T) -> Self
+    where
+        Self: Sized,
+    {
+        self.get_mut_items().push(Arc::new(widget));
+        self
     }
 
-    fn get(&self, widget: Widget) -> bool {
-        todo!()
+    fn same_line<T: Update + 'static>(mut self, widget: T) -> Self
+    where
+        Self: Sized,
+    {
+        self.add(SameLine::new(None, None)).add(widget)
     }
 }
 
+fn show_demo_window() {
+    unsafe { backend::show_demo_window() }
+}
+
+#[derive(Clone)]
 pub struct Window {
     label: String,
-    buttons: Vec<Arc<Button>>,
-    text: Vec<Arc<Text>>,
-    checkboxes: Vec<Arc<Checkbox>>,
-    text_input: Vec<Arc<InputText>>,
-    input_color: Vec<Arc<InputColor>>,
-    slider_int: Vec<Arc<SliderInt>>,
-    slider_float: Vec<Arc<SliderFloat>>,
-    tree_nodes: Vec<Arc<TreeNode>>,
-    widgets: Vec<Arc<dyn Update + Send + Sync>>,
+    widgets: Vec<Arc<dyn Update>>,
 }
 
 impl Window {
@@ -388,153 +261,40 @@ impl Window {
 
         Window {
             label,
-            buttons: vec![],
-            text: vec![],
-            checkboxes: vec![],
-            text_input: vec![],
-            input_color: vec![],
-            slider_int: vec![],
-            slider_float: vec![],
-            tree_nodes: vec![],
             widgets: vec![],
         }
     }
+}
 
-    pub fn same_line<T>(mut self, widget: T) -> Self
-    where
-        Window: Add<T>,
-    {
-        self.widgets.push(Arc::new(SameLine::new(None, None)));
-        self.add(widget)
-    }
-
-    fn update(&self, gui: &Gui) {
+impl Update for Window {
+    fn update(&self, gui: &Gui) -> bool {
         unsafe { ImGui_Begin(self.label.as_ptr(), &true, 0) }
         for widget in &self.widgets {
-            let x = widget.update(gui);
-            if x {
+            if widget.update(gui) {
                 widget.call_callback(gui);
             }
         }
         unsafe { ImGui_End() }
+        false
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
-pub trait AccessWidget<T> {
-    fn set(&self, widget: Widget, value: T);
-    fn get(&self, widget: Widget) -> T;
-}
-
-impl AccessWidget<bool> for Window {
-    fn set(&self, widget: Widget, value: bool) {
-        match widget {
-            Widget::Button(i) => self
-                .buttons
-                .get(i)
-                .expect("there aren't enough buttons")
-                .set(value),
-            Widget::Checkbox(i) => self.checkboxes.get(i).expect("msg").set(value),
-            _ => unreachable!("set widget: {:?} not implemented", widget),
-        }
+impl Container2 for Window {
+    fn get_items(&self) -> &Vec<Arc<dyn Update>> {
+        &self.widgets
     }
-
-    fn get(&self, widget: Widget) -> bool {
-        match widget {
-            Widget::Button(i) => *self
-                .buttons
-                .get(i)
-                .expect("there aren't enough buttons")
-                .value
-                .blocking_read(),
-            Widget::Checkbox(i) => *self
-                .checkboxes
-                .get(i)
-                .expect("not enough checkboxes")
-                .value
-                .blocking_read(),
-            _ => unreachable!("set widget: {:?} not implemented", widget),
-        }
+    fn get_mut_items(&mut self) -> &mut Vec<Arc<dyn Update>> {
+        &mut self.widgets
     }
-}
-
-impl AccessWidget<String> for Window {
-    fn set(&self, widget: Widget, value: String) {
-        let mut value = value;
-        if !value.ends_with('\0') {
-            value.push('\0');
-        };
-        match widget {
-            Widget::Text(i) => self
-                .text
-                .get(i)
-                .expect("there aren't enough text widgets")
-                .set(value),
-            Widget::InputText(i) => {
-                // if *self
-                //     .text_input
-                //     .get(i)
-                //     .expect("tere aren't enough text inputs")
-                //     .buffer_size
-                //     .blocking_read()
-                //     <
-                //     value.capacity() {
-                //         panic!("the string input is to large");
-                //     }
-                *self
-                .text_input
-                .get(i)
-                .expect("there aren't enough text inputs")
-                .value
-                .blocking_write() = value;
-            }
-            _ => unreachable!("set widget: {:?} not implemented", widget),
-        }
-    }
-
-    fn get(&self, widget: Widget) -> String {
-        match widget {
-            Widget::Text(i) => self
-                .text
-                .get(i)
-                .expect("there aren't enough text widgets")
-                .value
-                .blocking_read()
-                .clone(),
-            Widget::InputText(i) => self
-                .text_input
-                .get(i)
-                .expect("not enough input text")
-                .get_text(),
-            _ => unreachable!("set widget: {:?} not implemented", widget),
-        }
-    }
-}
-
-pub trait Update {
-    fn update(&self, gui: &Gui) -> bool;
-    fn call_callback(&self, _gui: &Gui) {}
-}
-
-pub trait Add<T> {
-    fn add(self, widget: T) -> Self;
-}
-
-pub trait Set<T> {
-    fn set(&self, value: T);
-}
-
-fn to_update<T: Update + 'static + Send + Sync>(
-    test: &Arc<T>,
-) -> Arc<dyn Update + 'static + Send + Sync> {
-    test.clone() as _
-}
-
-fn show_demo_window() {
-    unsafe { backend::show_demo_window() }
 }
 
 type Callback = Arc<RwLock<Box<dyn Fn(&Gui) + Send + Sync>>>;
 
+#[derive(Clone)]
 pub struct Button {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<bool>>,
@@ -553,18 +313,15 @@ impl Button {
             callback: Arc::new(RwLock::new(Box::new(|_gui: &Gui| {}))),
         }
     }
-
-    pub fn callback<T: 'static + Send + Sync + Fn(&Gui)>(mut self, callback: T) -> Self {
-        self.callback = Arc::new(RwLock::new(Box::new(callback)));
-        self
-    }
 }
 
 impl Update for Button {
     fn update(&self, _: &Gui) -> bool {
-        unsafe {ImGui_Button(
-            self.label.blocking_write().as_ptr(),
-            &self.value.blocking_write())
+        unsafe {
+            ImGui_Button(
+                self.label.blocking_write().as_ptr(),
+                &self.value.blocking_write(),
+            )
         }
         *self.value.blocking_read()
     }
@@ -572,11 +329,24 @@ impl Update for Button {
     fn call_callback(&self, gui: &Gui) {
         (self.callback.blocking_read())(gui);
     }
+
+    fn set_callback<T: 'static + Send + Sync + Fn(&Gui)>(mut self, callback: T) -> Self {
+        self.callback = Arc::new(RwLock::new(Box::new(callback)));
+        self
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
-impl_Add!(Button, buttons);
-impl_Set!(Button, bool, value);
+impl Get<bool> for Button {
+    fn get(&self) -> bool {
+        *self.value.blocking_read()
+    }
+}
 
+#[derive(Clone)]
 pub struct Text {
     pub value: Arc<RwLock<String>>,
 }
@@ -593,13 +363,24 @@ impl Text {
     }
 }
 
-impl_Update!(Text, ImGui_Text(self.value.blocking_write().as_ptr()));
-impl_Add!(Text, text);
-impl_Set!(Text, String, value);
+impl Set<String> for Text {
+    fn set(&self, value: String) {
+        *self.value.blocking_write() = value;
+    }
+}
 
+impl Get<String> for Text {
+    fn get(&self) -> String {
+        self.value.blocking_read().clone()
+    }
+}
+
+impl_Update!(Text, ImGui_Text(self.value.blocking_write().as_ptr()));
+
+#[derive(Clone)]
 pub struct Checkbox {
     label: Arc<RwLock<String>>,
-    pub value: Arc<RwLock<bool>>,
+    value: Arc<RwLock<bool>>,
     callback: Callback,
 }
 
@@ -615,8 +396,18 @@ impl Checkbox {
             callback: Arc::new(RwLock::new(Box::new(|_gui: &Gui| {}))),
         }
     }
+}
 
-    callback!(callback);
+impl Set<bool> for Checkbox {
+    fn set(&self, value: bool) {
+        *self.value.blocking_write() = value;
+    }
+}
+
+impl Get<bool> for Checkbox {
+    fn get(&self) -> bool {
+        *self.value.blocking_read()
+    }
 }
 
 impl_Update!(
@@ -628,9 +419,8 @@ impl_Update!(
     callback,
     value
 );
-impl_Add!(Checkbox, checkboxes);
-impl_Set!(Checkbox, bool, value);
 
+#[derive(Clone)]
 pub struct InputText {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<String>>,
@@ -654,8 +444,10 @@ impl InputText {
             buffer_size: Arc::new(RwLock::new(255)),
         }
     }
+}
 
-    pub fn get_text(&self) -> String {
+impl Get<String> for InputText {
+    fn get(&self) -> String {
         let null_terminator_position = self.value.blocking_read().find('\0').unwrap();
 
         // if a truncation of a non ascii character occurred the string has a invalid memory layout past the intended end.
@@ -672,9 +464,8 @@ impl_Update!(
         0
     )
 );
-impl_Add!(InputText, text_input);
-impl_Set!(InputText, String, value);
 
+#[derive(Clone)]
 pub struct InputColor {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<ImGui_Vec4>>,
@@ -700,14 +491,10 @@ impl InputColor {
     }
 }
 
-impl Set<Vec<f32>> for InputColor {
-    fn set(&self, value: Vec<f32>) {
-        *self.value.blocking_write() = ImGui_Vec4 {
-            x: value[0],
-            y: value[1],
-            z: value[2],
-            w: value[3],
-        };
+impl Get<Vec<f32>> for InputColor {
+    fn get(&self) -> Vec<f32> {
+        let color = *self.value.blocking_read();
+        vec![color.x, color.y, color.z, color.w]
     }
 }
 
@@ -718,8 +505,8 @@ impl_Update!(
         &self.value.blocking_write()
     )
 );
-impl_Add!(InputColor, input_color);
 
+#[derive(Clone)]
 pub struct SameLine {
     offset_from_start_x: Arc<RwLock<f32>>,
     spacing: Arc<RwLock<f32>>,
@@ -749,6 +536,7 @@ impl_Update!(
     )
 );
 
+#[derive(Clone)]
 pub struct SliderInt {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<i32>>,
@@ -772,11 +560,19 @@ impl SliderInt {
             callback: Arc::new(RwLock::new(Box::new(|_gui: &Gui| {}))),
         }
     }
-
-    callback!(callback);
 }
 
-use rust_gui_macros::*;
+impl Get<i32> for SliderInt {
+    fn get(&self) -> i32 {
+        *self.value.blocking_read()
+    }
+}
+
+impl Set<i32> for SliderInt {
+    fn set(&self, value: i32) {
+        *self.value.blocking_write() = value;
+    }
+}
 
 impl_Update!(
     SliderInt,
@@ -789,9 +585,8 @@ impl_Update!(
     callback,
     value
 );
-impl_Add!(SliderInt, slider_int);
-impl_Set!(SliderInt, i32, value);
 
+#[derive(Clone)]
 pub struct SliderFloat {
     label: Arc<RwLock<String>>,
     value: Arc<RwLock<f32>>,
@@ -815,8 +610,18 @@ impl SliderFloat {
             callback: Arc::new(RwLock::new(Box::new(|_gui: &Gui| {}))),
         }
     }
+}
 
-    callback!(callback);
+impl Get<f32> for SliderFloat {
+    fn get(&self) -> f32 {
+        *self.value.blocking_read()
+    }
+}
+
+impl Set<f32> for SliderFloat {
+    fn set(&self, value: f32) {
+        *self.value.blocking_write() = value;
+    }
 }
 
 impl_Update!(
@@ -830,25 +635,16 @@ impl_Update!(
     callback,
     value
 );
-impl_Add!(SliderFloat, slider_float);
-impl_Set!(SliderFloat, f32, value);
 
+#[derive(Clone)]
 pub struct TreeNode {
     flags: Arc<RwLock<i32>>,
     label: Arc<RwLock<String>>,
-    buttons: Vec<Arc<Button>>,
-    text: Vec<Arc<Text>>,
-    checkboxes: Vec<Arc<Checkbox>>,
-    text_input: Vec<Arc<InputText>>,
-    input_color: Vec<Arc<InputColor>>,
-    slider_int: Vec<Arc<SliderInt>>,
-    slider_float: Vec<Arc<SliderFloat>>,
-    tree_nodes: Vec<Arc<TreeNode>>,
-    widgets: Vec<Arc<dyn Update + Send + Sync>>,
+    items: Vec<Arc<dyn Update>>,
 }
 
 impl TreeNode {
-    pub fn new(label: &str) -> Self{
+    pub fn new(label: &str) -> Self {
         let mut label = String::from_str(label).unwrap();
         if !label.ends_with('\0') {
             label.push('\0');
@@ -857,46 +653,41 @@ impl TreeNode {
         TreeNode {
             flags: Arc::new(RwLock::new(0)),
             label: Arc::new(RwLock::new(label)),
-            buttons: vec![],
-            text: vec![],
-            checkboxes: vec![],
-            text_input: vec![],
-            input_color: vec![],
-            slider_int: vec![],
-            slider_float: vec![],
-            tree_nodes: vec![],
-            widgets: vec![],
+            items: vec![],
         }
     }
+}
 
-    pub fn same_line<T>(mut self, widget: T) -> Self
-    where
-        TreeNode: Add<T>,
-    {
-        self.widgets.push(Arc::new(SameLine::new(None, None)));
-        self.add(widget)
+impl Container2 for TreeNode {
+    fn get_items(&self) -> &Vec<Arc<dyn Update>> {
+        &self.items
+    }
+
+    fn get_mut_items(&mut self) -> &mut Vec<Arc<dyn Update>> {
+        &mut self.items
     }
 }
 
 impl Update for TreeNode {
     fn update(&self, gui: &Gui) -> bool {
-       if unsafe { ImGUI_TreeNodeEx(self.label.blocking_read().as_ptr(), *self.flags.blocking_read()) }{
-           for widget in &self.widgets {
+        if unsafe {
+            ImGUI_TreeNodeEx(
+                self.label.blocking_read().as_ptr(),
+                *self.flags.blocking_read(),
+            )
+        } {
+            for widget in &self.items {
                 let call_callback = widget.update(gui);
                 if call_callback {
                     widget.call_callback(gui);
                 }
-           }
-           unsafe { ImGui__TreePop() }
-       }
+            }
+            unsafe { ImGui__TreePop() }
+        }
         false
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
-
-// impl Contain for TreeNode {
-//     fn get_items(&self) -> &Vec<Item> {
-        
-//     }
-// }
-
-impl_Add!(TreeNode, tree_nodes);

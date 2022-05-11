@@ -53,6 +53,9 @@ pub fn impl_Update(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     unsafe { #fun #param }
                     false
                 }
+                fn as_any(&self) -> &dyn Any{
+                    self
+                }
             }
         }
     } else {
@@ -66,6 +69,15 @@ pub fn impl_Update(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                 fn call_callback(&self, gui: &Gui) {
                     (self.#callback.blocking_read())(gui);
+                }
+
+                fn set_callback<T: 'static + Send + Sync + Fn(&Gui)>(mut self, callback: T) -> Self {
+                    self.callback = Arc::new(RwLock::new(Box::new(callback)));
+                    self
+                }
+                
+                fn as_any(&self) -> &dyn Any{
+                    self
                 }
             }
         }
