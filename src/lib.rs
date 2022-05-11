@@ -225,7 +225,7 @@ pub trait Container2 {
         self
     }
 
-    fn same_line<T: Update + 'static>(mut self, widget: T) -> Self
+    fn same_line<T: Update + 'static>(self, widget: T) -> Self
     where
         Self: Sized,
     {

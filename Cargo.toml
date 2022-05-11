@@ -1,6 +1,6 @@
 [package]
 name = "rust-gui"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license-file = "LICENSE"
 description = "This project is a wrapper of the c++ library Dear ImGui to implement a simple GUI fast."
