@@ -1,6 +1,5 @@
 use quote::{self, ToTokens, TokenStreamExt};
 use proc_macro::TokenStream;
-use proc_macro2;
 
 #[proc_macro]
 #[allow(non_snake_case)]
@@ -127,6 +126,6 @@ pub fn what(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     
 
-    return TokenStream::new();
+    TokenStream::new()
 }
 
